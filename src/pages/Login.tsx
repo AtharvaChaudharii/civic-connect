@@ -22,7 +22,7 @@ const Login = () => {
     }
     const result = login(email, password);
     if (result.success) {
-      navigate("/dashboard");
+      navigate("/dashboard-redirect");
     } else {
       setError(result.error || "Login failed.");
     }
