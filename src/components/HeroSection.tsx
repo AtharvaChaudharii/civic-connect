@@ -1,3 +1,4 @@
+import { Link } from "react-router-dom";
 import { Button } from "@/components/ui/button";
 import heroImage from "@/assets/hero-civic.jpg";
 
@@ -19,10 +20,12 @@ const HeroSection = () => (
             track resolution progress, and escalate unresolved issues — all in one platform.
           </p>
           <div className="flex flex-wrap gap-3">
-            <Button size="lg">Report an Issue</Button>
-            <Button size="lg" variant="outline">
-              Explore Issues
-            </Button>
+            <Link to="/login">
+              <Button size="lg">Report an Issue</Button>
+            </Link>
+            <Link to="/login">
+              <Button size="lg" variant="outline">Explore Issues</Button>
+            </Link>
           </div>
         </div>
 

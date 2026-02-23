@@ -8,7 +8,21 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
-import IssueCard, { type Issue } from "@/components/IssueCard";
+import IssueCard from "@/components/IssueCard";
+import type { IssueStatus } from "@/components/StatusBadge";
+
+interface Issue {
+  id: string;
+  title: string;
+  location: string;
+  department: string;
+  status: IssueStatus;
+  image: string;
+  upvotes: number;
+  comments: number;
+  reporters: number;
+  daysAgo: number;
+}
 
 import issueGarbage from "@/assets/issue-garbage.jpg";
 import issuePothole from "@/assets/issue-pothole.jpg";
