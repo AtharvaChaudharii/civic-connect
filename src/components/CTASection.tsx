@@ -1,3 +1,4 @@
+import { Link } from "react-router-dom";
 import { Button } from "@/components/ui/button";
 
 const CTASection = () => (
@@ -10,13 +11,15 @@ const CTASection = () => (
         Every report counts. Join thousands of citizens making their neighborhoods
         cleaner, safer, and better maintained.
       </p>
-      <Button
-        size="lg"
-        variant="secondary"
-        className="font-semibold"
-      >
-        Report an Issue Now
-      </Button>
+      <Link to="/login">
+        <Button
+          size="lg"
+          variant="secondary"
+          className="font-semibold"
+        >
+          Report an Issue Now
+        </Button>
+      </Link>
     </div>
   </section>
 );
