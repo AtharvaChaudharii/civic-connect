@@ -2,6 +2,7 @@ import { useState } from "react";
 import { useAuth } from "@/contexts/AuthContext";
 import { mockIssues } from "@/data/mock-issues";
 import { Input } from "@/components/ui/input";
+import { Button } from "@/components/ui/button";
 import {
   Select,
   SelectContent,
@@ -9,8 +10,9 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
-import IssueCard from "@/components/IssueCard";
-import { Search, MapPin } from "lucide-react";
+import StatusBadge from "@/components/StatusBadge";
+import { Search, MapPin, ThumbsUp, MessageSquare, Users } from "lucide-react";
+import { Link } from "react-router-dom";
 
 const categories = [
   "All Categories",
@@ -28,6 +30,7 @@ const SearchPage = () => {
   const [search, setSearch] = useState("");
   const [category, setCategory] = useState("All Categories");
   const [status, setStatus] = useState("All Status");
+  const [visibleCount, setVisibleCount] = useState(6);
 
   const cityIssues = mockIssues.filter((i) => i.city === user?.city);
 
@@ -42,11 +45,13 @@ const SearchPage = () => {
     return matchSearch && matchCategory && matchStatus;
   });
 
+  const visible = filtered.slice(0, visibleCount);
+
   return (
     <div className="civic-container civic-section">
-      <h1 className="mb-2 text-h2 text-foreground">Search Issues</h1>
-      <p className="mb-8 text-body text-muted-foreground">
-        Find and discover civic issues in {user?.city}.
+      <h1 className="mb-2 text-h2 font-bold text-foreground">Issues Around You</h1>
+      <p className="mb-8 max-w-lg text-body text-muted-foreground">
+        Browse civic issues reported by neighbors, upvote important problems, and track their resolution progress in real-time.
       </p>
 
       {/* Filters */}
@@ -54,7 +59,7 @@ const SearchPage = () => {
         <div className="relative flex-1">
           <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
           <Input
-            placeholder="Search by keyword or location…"
+            placeholder="Search by keyword, street name, or location..."
             className="h-11 pl-9"
             value={search}
             onChange={(e) => setSearch(e.target.value)}
@@ -82,16 +87,70 @@ const SearchPage = () => {
         </Select>
       </div>
 
-      <p className="mb-4 text-caption text-muted-foreground">
-        {filtered.length} issue{filtered.length !== 1 ? "s" : ""} found
-      </p>
+      {/* Grid */}
+      {visible.length > 0 ? (
+        <>
+          <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-3">
+            {visible.map((issue) => (
+              <div key={issue.id} className="group overflow-hidden rounded-xl border bg-card shadow-sm civic-card-hover">
+                <div className="relative aspect-[16/10] overflow-hidden">
+                  <img
+                    src={issue.image}
+                    alt={issue.title}
+                    className="h-full w-full object-cover transition-transform duration-300 group-hover:scale-105"
+                    loading="lazy"
+                  />
+                  <div className="absolute top-3 right-3">
+                    <StatusBadge status={issue.status} />
+                  </div>
+                </div>
+                <div className="p-5">
+                  <h3 className="mb-1 text-body font-semibold text-foreground leading-snug">
+                    {issue.title}
+                  </h3>
+                  <p className="mb-3 flex items-center gap-1 text-caption text-muted-foreground">
+                    <MapPin className="h-3.5 w-3.5" />
+                    {issue.location}
+                  </p>
+                  <div className="mb-4 flex items-center gap-2 flex-wrap">
+                    <span className="rounded-md border px-2 py-0.5 text-label text-muted-foreground">
+                      {issue.department}
+                    </span>
+                    {issue.reporters > 1 && (
+                      <span className="flex items-center gap-1 text-label text-muted-foreground">
+                        <Users className="h-3 w-3" />
+                        Reported by {issue.reporters} users
+                      </span>
+                    )}
+                  </div>
+                  <div className="flex items-center justify-between border-t pt-3">
+                    <div className="flex items-center gap-4 text-caption text-muted-foreground">
+                      <span className="flex items-center gap-1">
+                        <ThumbsUp className="h-3.5 w-3.5" /> {issue.upvotes}
+                      </span>
+                      <span className="flex items-center gap-1">
+                        <MessageSquare className="h-3.5 w-3.5" /> {issue.comments.length}
+                      </span>
+                    </div>
+                    <Link to={`/dashboard/issue/${issue.id}`}>
+                      <Button variant="outline" size="sm" className="text-caption">
+                        View Details
+                      </Button>
+                    </Link>
+                  </div>
+                </div>
+              </div>
+            ))}
+          </div>
 
-      {filtered.length > 0 ? (
-        <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-3">
-          {filtered.map((issue) => (
-            <IssueCard key={issue.id} issue={issue} linkTo={`/dashboard/issue/${issue.id}`} />
-          ))}
-        </div>
+          {visibleCount < filtered.length && (
+            <div className="mt-8 text-center">
+              <Button variant="outline" onClick={() => setVisibleCount((c) => c + 6)}>
+                Load More Issues
+              </Button>
+            </div>
+          )}
+        </>
       ) : (
         <div className="rounded-xl border bg-card py-16 text-center">
           <MapPin className="mx-auto mb-3 h-8 w-8 text-muted-foreground" />
