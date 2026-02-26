@@ -7,11 +7,15 @@ import IssueMap from "@/components/IssueMap";
 import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
 import {
-  ArrowLeft, MapPin, Users, ImagePlus, Send, AlertTriangle,
-  CheckCircle, Printer, Flag, Clock, Upload,
+  Select, SelectContent, SelectItem, SelectTrigger, SelectValue,
+} from "@/components/ui/select";
+import {
+  ArrowLeft, MapPin, Users, Send, AlertTriangle,
+  CheckCircle, Printer, Flag, Upload,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { toast } from "@/hooks/use-toast";
+import type { IssueStatus } from "@/types";
 
 const TicketDetail = () => {
   const { id } = useParams();
@@ -21,6 +25,12 @@ const TicketDetail = () => {
   const [proofPreview, setProofPreview] = useState<string | null>(null);
   const [resolutionNote, setResolutionNote] = useState("");
   const [comment, setComment] = useState("");
+  const [localStatus, setLocalStatus] = useState<IssueStatus>(issue?.status ?? "Pending");
+  const [discussionMessages, setDiscussionMessages] = useState([
+    { initials: "AS", name: "Amit Singh (Sup.)", time: "Yesterday", message: "Please prioritize this.", isOwn: false },
+    { initials: "", name: "You", time: "10:05 AM", message: "Noted. Team is already on site.", isOwn: true },
+    { initials: "M", name: "Maintenance", time: "10:15 AM", message: "Traffic diversion setup complete.", isOwn: false },
+  ]);
 
   if (!issue) {
     return (
@@ -40,15 +50,33 @@ const TicketDetail = () => {
     }
   };
 
+  const handleStatusChange = (newStatus: string) => {
+    if (newStatus === "Resolved" && !proofPreview) {
+      toast({ title: "Proof Required", description: "Upload resolution proof before marking as Resolved.", variant: "destructive" });
+      return;
+    }
+    const status = newStatus as IssueStatus;
+    setLocalStatus(status);
+    issue.status = status;
+    issue.updatedAt = new Date().toISOString();
+    if (status === "Resolved") {
+      issue.resolvedAt = new Date().toISOString();
+    }
+    toast({ title: `Status updated to ${status}`, description: "All linked reporters have been notified." });
+  };
+
   const handleResolve = () => {
     if (!proofPreview) {
       toast({ title: "Proof Required", description: "Please upload a resolution proof image before marking as resolved.", variant: "destructive" });
       return;
     }
-    toast({ title: "Issue Resolved", description: "All linked reporters have been notified." });
+    handleStatusChange("Resolved");
   };
 
   const handleEscalate = () => {
+    setLocalStatus("Escalated");
+    issue.status = "Escalated";
+    issue.escalatedAt = new Date().toISOString();
     toast({ title: "Escalated", description: "This issue has been escalated to the Municipal Corporation.", variant: "destructive" });
   };
 
@@ -56,21 +84,19 @@ const TicketDetail = () => {
 
   const handleSendComment = () => {
     if (comment.trim()) {
-      toast({ title: "Comment Sent", description: "Your internal comment has been posted." });
+      setDiscussionMessages((prev) => [...prev, {
+        initials: "", name: "You", time: new Date().toLocaleTimeString("en-IN", { hour: "2-digit", minute: "2-digit" }),
+        message: comment.trim(), isOwn: true,
+      }]);
       setComment("");
+      toast({ title: "Comment Sent", description: "Your internal comment has been posted." });
     }
   };
 
   const timeline = [
-    { label: "Work in Progress", date: "Today, 10:00 AM", description: "Maintenance team dispatched.", active: true },
+    { label: "Work in Progress", date: "Today, 10:00 AM", description: "Maintenance team dispatched.", active: localStatus === "Ongoing" },
     { label: "Issue Verified", date: "Yesterday, 4:30 PM", description: "Field officer verified severity.", active: false },
     { label: "Ticket Created", date: new Date(issue.createdAt).toLocaleDateString("en-IN", { day: "numeric", month: "short" }) + ", 10:42 AM", description: "", active: false },
-  ];
-
-  const discussion = [
-    { initials: "AS", name: "Amit Singh (Sup.)", time: "Yesterday", message: "Please prioritize this.", isOwn: false },
-    { initials: "", name: "You", time: "10:05 AM", message: "Noted. Team is already on site.", isOwn: true },
-    { initials: "M", name: "Maintenance", time: "10:15 AM", message: "Traffic diversion setup complete.", isOwn: false },
   ];
 
   return (
@@ -83,7 +109,7 @@ const TicketDetail = () => {
       <div className="mb-6 flex flex-wrap items-center justify-between gap-3">
         <div className="flex items-center gap-3">
           <h1 className="text-h3 font-bold text-foreground">{issue.title}</h1>
-          <StatusBadge status={issue.status} />
+          <StatusBadge status={localStatus} />
         </div>
         <div className="flex gap-2">
           <Button variant="outline" size="sm" className="gap-1.5" onClick={handlePrint}>
@@ -137,6 +163,27 @@ const TicketDetail = () => {
           <div>
             <p className="mb-2 text-label uppercase tracking-wider text-muted-foreground">Description</p>
             <p className="text-body text-foreground leading-relaxed">{issue.description}</p>
+          </div>
+
+          {/* Status Change Control */}
+          <div className="rounded-xl border bg-card p-5">
+            <h3 className="mb-3 text-body font-semibold text-foreground">Update Status</h3>
+            <div className="flex items-center gap-3">
+              <Select value={localStatus} onValueChange={handleStatusChange}>
+                <SelectTrigger className="h-11 w-48">
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="Pending">Pending</SelectItem>
+                  <SelectItem value="Ongoing">Ongoing</SelectItem>
+                  <SelectItem value="Resolved">Resolved</SelectItem>
+                  <SelectItem value="Escalated">Escalated</SelectItem>
+                </SelectContent>
+              </Select>
+              <p className="text-caption text-muted-foreground">
+                {localStatus === "Resolved" ? "✓ Resolution proof uploaded" : "Proof required before resolving"}
+              </p>
+            </div>
           </div>
 
           {/* Linked Reports */}
@@ -218,8 +265,8 @@ const TicketDetail = () => {
               <h3 className="text-caption font-semibold text-foreground">Discussion</h3>
               <span className="text-label text-muted-foreground">Internal Only</span>
             </div>
-            <div className="space-y-3 mb-4">
-              {discussion.map((msg, idx) => (
+            <div className="space-y-3 mb-4 max-h-80 overflow-y-auto">
+              {discussionMessages.map((msg, idx) => (
                 <div key={idx} className={cn("flex gap-2", msg.isOwn && "flex-row-reverse")}>
                   {!msg.isOwn && (
                     <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-muted text-label font-semibold text-muted-foreground">{msg.initials}</div>

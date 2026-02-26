@@ -1,6 +1,7 @@
-import { useState } from "react";
+import { useState, useMemo } from "react";
 import { useNavigate } from "react-router-dom";
 import { useAuth } from "@/contexts/AuthContext";
+import { mockIssues } from "@/data/mock-issues";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -8,7 +9,7 @@ import { Textarea } from "@/components/ui/textarea";
 import {
   Select, SelectContent, SelectItem, SelectTrigger, SelectValue,
 } from "@/components/ui/select";
-import { Upload, MapPin, CheckCircle, Camera, Send, AlertTriangle } from "lucide-react";
+import { Upload, MapPin, CheckCircle, Camera, Send, AlertTriangle, Info } from "lucide-react";
 import IssueMap from "@/components/IssueMap";
 import type { IssueCategory } from "@/types";
 
@@ -31,6 +32,18 @@ const ReportIssue = () => {
   const [urgency, setUrgency] = useState(urgencyLevels[0]);
   const [description, setDescription] = useState("");
   const [submitted, setSubmitted] = useState(false);
+
+  // Duplicate detection: find nearby issues with same category within ~500m
+  const nearbyDuplicates = useMemo(() => {
+    if (!category || !user?.city) return [];
+    return mockIssues.filter((issue) => {
+      if (issue.city !== user.city || issue.category !== category) return false;
+      const dLat = issue.lat - pinLat;
+      const dLng = issue.lng - pinLng;
+      const dist = Math.sqrt(dLat * dLat + dLng * dLng) * 111000; // rough meters
+      return dist < 500;
+    });
+  }, [category, pinLat, pinLng, user?.city]);
 
   const handleImageUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
@@ -192,6 +205,30 @@ const ReportIssue = () => {
             <p className="text-right text-label text-muted-foreground">{description.length}/500 characters</p>
           </div>
         </div>
+
+        {/* Duplicate Detection Warning */}
+        {nearbyDuplicates.length > 0 && (
+          <div className="mb-6 rounded-xl border border-amber-200 bg-amber-50 p-4">
+            <div className="mb-2 flex items-center gap-2 text-caption font-semibold text-amber-800">
+              <Info className="h-4 w-4" /> Similar issues found nearby
+            </div>
+            <p className="mb-3 text-caption text-amber-700">
+              We found {nearbyDuplicates.length} similar {category} issue(s) within 500m of your location. Your report may be merged as a duplicate to help prioritize resolution.
+            </p>
+            <div className="space-y-2">
+              {nearbyDuplicates.slice(0, 3).map((dup) => (
+                <div key={dup.id} className="flex items-center gap-3 rounded-lg bg-card p-2">
+                  <img src={dup.image} alt={dup.title} className="h-10 w-10 rounded object-cover" />
+                  <div className="flex-1">
+                    <p className="text-caption font-medium text-foreground">{dup.title}</p>
+                    <p className="text-label text-muted-foreground">{dup.reporters} reporters · {dup.status}</p>
+                  </div>
+                </div>
+              ))}
+            </div>
+            <p className="mt-2 text-label text-amber-600">You can still submit — your report will be linked to the existing ticket.</p>
+          </div>
+        )}
 
         <div className="flex flex-wrap items-center justify-between gap-4">
           <p className="text-caption text-muted-foreground">

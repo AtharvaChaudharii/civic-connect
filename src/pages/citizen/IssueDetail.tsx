@@ -9,15 +9,21 @@ import {
   MapPin, ThumbsUp, ArrowLeft, Clock, Users, MessageSquare,
   AlertTriangle, CheckCircle, Send,
 } from "lucide-react";
-import { useState } from "react";
+import { useState, useMemo } from "react";
 import { cn } from "@/lib/utils";
+import { toast } from "@/hooks/use-toast";
+import type { Comment } from "@/types";
 
 const IssueDetail = () => {
   const { id } = useParams();
   const navigate = useNavigate();
   const { user } = useAuth();
   const issue = mockIssues.find((i) => i.id === id);
+
   const [newComment, setNewComment] = useState("");
+  const [upvoted, setUpvoted] = useState(false);
+  const [localUpvotes, setLocalUpvotes] = useState(issue?.upvotes ?? 0);
+  const [localComments, setLocalComments] = useState<Comment[]>(issue?.comments ?? []);
 
   if (!issue) {
     return (
@@ -27,6 +33,35 @@ const IssueDetail = () => {
       </div>
     );
   }
+
+  const handleUpvote = () => {
+    if (upvoted) {
+      setLocalUpvotes((c) => c - 1);
+      setUpvoted(false);
+      toast({ title: "Upvote removed" });
+    } else {
+      setLocalUpvotes((c) => c + 1);
+      setUpvoted(true);
+      toast({ title: "Issue upvoted!", description: "You're helping prioritize this issue." });
+    }
+  };
+
+  const handlePostComment = () => {
+    if (!newComment.trim() || !user) return;
+    const comment: Comment = {
+      id: `cm_${Date.now()}`,
+      userId: user.id,
+      userName: user.name,
+      userRole: "citizen",
+      content: newComment.trim(),
+      createdAt: new Date().toISOString(),
+    };
+    setLocalComments((prev) => [...prev, comment]);
+    // Also push to mock data so it persists in session
+    issue.comments.push(comment);
+    setNewComment("");
+    toast({ title: "Comment posted", description: "Your comment has been added." });
+  };
 
   const timelineSteps = [
     { label: "Reported", date: issue.createdAt, done: true },
@@ -47,13 +82,8 @@ const IssueDetail = () => {
             <img src={issue.image} alt={issue.title} className="w-full object-cover" style={{ maxHeight: 400 }} />
           </div>
 
-          {/* Interactive map */}
           <div className="overflow-hidden rounded-xl border">
-            <IssueMap
-              issues={[]}
-              singlePin={[issue.lat, issue.lng]}
-              height="h-48"
-            />
+            <IssueMap issues={[]} singlePin={[issue.lat, issue.lng]} height="h-48" />
           </div>
 
           {issue.proofImage && issue.status === "Resolved" && (
@@ -96,7 +126,14 @@ const IssueDetail = () => {
           <p className="text-body text-foreground leading-relaxed">{issue.description}</p>
 
           <div className="flex items-center gap-4">
-            <Button variant="outline" size="sm" className="gap-2"><ThumbsUp className="h-4 w-4" /> Upvote ({issue.upvotes})</Button>
+            <Button
+              variant={upvoted ? "default" : "outline"}
+              size="sm"
+              className="gap-2"
+              onClick={handleUpvote}
+            >
+              <ThumbsUp className={cn("h-4 w-4", upvoted && "fill-current")} /> Upvote ({localUpvotes})
+            </Button>
           </div>
 
           {/* Timeline */}
@@ -133,10 +170,10 @@ const IssueDetail = () => {
       {/* Comments */}
       <div className="mt-10">
         <h2 className="mb-4 flex items-center gap-2 text-h3 text-foreground">
-          <MessageSquare className="h-5 w-5" /> Comments ({issue.comments.length})
+          <MessageSquare className="h-5 w-5" /> Comments ({localComments.length})
         </h2>
         <div className="space-y-4">
-          {issue.comments.map((c) => (
+          {localComments.map((c) => (
             <div key={c.id} className={cn("rounded-xl border p-4", c.isDepartmentUpdate && "border-l-4 border-l-primary bg-accent/20")}>
               <div className="mb-2 flex items-center gap-2">
                 <div className="flex h-8 w-8 items-center justify-center rounded-full bg-muted text-label font-semibold text-muted-foreground">{c.userName.charAt(0)}</div>
@@ -152,7 +189,7 @@ const IssueDetail = () => {
         </div>
         <div className="mt-6 flex gap-3">
           <Textarea placeholder="Add a comment…" value={newComment} onChange={(e) => setNewComment(e.target.value)} rows={2} className="flex-1" />
-          <Button disabled={!newComment.trim()} className="self-end gap-2"><Send className="h-4 w-4" /> Post</Button>
+          <Button disabled={!newComment.trim()} className="self-end gap-2" onClick={handlePostComment}><Send className="h-4 w-4" /> Post</Button>
         </div>
       </div>
     </div>
