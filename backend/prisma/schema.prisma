@@ -1,0 +1,215 @@
+// ──────────────────────────────────────────────
+// CivicConnect — Prisma Schema
+// Multi-city civic issue reporting platform
+// ──────────────────────────────────────────────
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+// ── Enums ──
+
+enum UserRole {
+  citizen
+  department
+  municipal
+}
+
+enum IssueStatus {
+  Pending
+  Ongoing
+  Resolved
+  Escalated
+}
+
+enum IssueCategory {
+  Garbage
+  Pothole
+  WaterOverflow
+  StreetLight
+  Drainage
+  Footpath
+  Other
+}
+
+enum NotificationType {
+  info
+  success
+  warning
+  error
+}
+
+// ── Models ──
+
+model User {
+  id           String      @id @default(uuid())
+  name         String
+  email        String      @unique
+  password     String
+  role         UserRole    @default(citizen)
+  avatar       String?
+  createdAt    DateTime    @default(now())
+  updatedAt    DateTime    @updatedAt
+
+  // Relations
+  city         City?       @relation(fields: [cityId], references: [id])
+  cityId       String?
+  department   Department? @relation(fields: [departmentId], references: [id])
+  departmentId String?
+
+  // Reverse relations
+  issuePosts    IssuePost[]
+  comments      Comment[]
+  notifications Notification[]
+  upvotes       Upvote[]
+
+  @@index([email])
+  @@index([cityId])
+  @@index([role])
+}
+
+model City {
+  id        String   @id @default(uuid())
+  name      String   @unique
+  state     String?
+  createdAt DateTime @default(now())
+
+  // Relations
+  departments        Department[]
+  users              User[]
+  issuePosts         IssuePost[]
+  consolidatedTickets ConsolidatedTicket[]
+
+  @@index([name])
+}
+
+model Department {
+  id           String @id @default(uuid())
+  name         String
+  categoryType IssueCategory
+  createdAt    DateTime @default(now())
+
+  // Relations
+  city   City   @relation(fields: [cityId], references: [id])
+  cityId String
+
+  // Reverse relations
+  users               User[]
+  consolidatedTickets  ConsolidatedTicket[]
+
+  @@unique([cityId, categoryType])
+  @@index([cityId])
+}
+
+model IssuePost {
+  id          String        @id @default(uuid())
+  title       String
+  description String
+  category    IssueCategory
+  location    String
+  lat         Float
+  lng         Float
+  status      IssueStatus   @default(Pending)
+  image       String
+  reporters   Int           @default(1)
+  createdAt   DateTime      @default(now())
+  updatedAt   DateTime      @updatedAt
+
+  // Relations
+  reportedBy          User               @relation(fields: [reportedById], references: [id])
+  reportedById        String
+  city                City               @relation(fields: [cityId], references: [id])
+  cityId              String
+  consolidatedTicket  ConsolidatedTicket? @relation(fields: [consolidatedTicketId], references: [id])
+  consolidatedTicketId String?
+
+  // Reverse relations
+  comments  Comment[]
+  upvotes   Upvote[]
+
+  @@index([cityId])
+  @@index([category])
+  @@index([status])
+  @@index([consolidatedTicketId])
+  @@index([reportedById])
+  @@index([lat, lng])
+  @@index([cityId, category, status])
+}
+
+model ConsolidatedTicket {
+  id                String      @id @default(uuid())
+  status            IssueStatus @default(Pending)
+  escalationFlag    Boolean     @default(false)
+  proofImage        String?
+  resolutionComment String?
+  createdAt         DateTime    @default(now())
+  updatedAt         DateTime    @updatedAt
+  escalatedAt       DateTime?
+  resolvedAt        DateTime?
+
+  // Relations
+  department   Department @relation(fields: [departmentId], references: [id])
+  departmentId String
+  city         City       @relation(fields: [cityId], references: [id])
+  cityId       String
+
+  // Reverse relations
+  issuePosts IssuePost[]
+
+  @@index([departmentId])
+  @@index([cityId])
+  @@index([status])
+  @@index([escalationFlag])
+}
+
+model Comment {
+  id                 String   @id @default(uuid())
+  content            String
+  image              String?
+  isDepartmentUpdate Boolean  @default(false)
+  createdAt          DateTime @default(now())
+
+  // Relations
+  user        User      @relation(fields: [userId], references: [id])
+  userId      String
+  issuePost   IssuePost @relation(fields: [issuePostId], references: [id], onDelete: Cascade)
+  issuePostId String
+
+  @@index([issuePostId])
+}
+
+model Notification {
+  id        String           @id @default(uuid())
+  title     String
+  message   String
+  type      NotificationType @default(info)
+  read      Boolean          @default(false)
+  createdAt DateTime         @default(now())
+
+  // Relations
+  user    User    @relation(fields: [userId], references: [id])
+  userId  String
+  issueId String?
+
+  @@index([userId])
+  @@index([read])
+  @@index([userId, read])
+}
+
+model Upvote {
+  id        String   @id @default(uuid())
+  createdAt DateTime @default(now())
+
+  // Relations
+  user        User      @relation(fields: [userId], references: [id])
+  userId      String
+  issuePost   IssuePost @relation(fields: [issuePostId], references: [id], onDelete: Cascade)
+  issuePostId String
+
+  @@unique([userId, issuePostId])
+}
