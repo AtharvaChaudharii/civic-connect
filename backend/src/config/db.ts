@@ -15,6 +15,11 @@ const prisma =
         },
     });
 
+// Test connection on startup
+prisma.$connect()
+    .then(() => console.log("✅ Database connected successfully"))
+    .catch((err) => console.error("❌ Database connection failed:", err));
+
 if (process.env.NODE_ENV !== "production") {
     globalForPrisma.prisma = prisma;
 }
