@@ -1,41 +1,86 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useCallback, useRef } from "react";
 import { useAuth } from "@/contexts/AuthContext";
-import { issues as issuesApi, CATEGORY_DISPLAY, type ApiIssue } from "@/lib/api";
+import { issues as issuesApi, CATEGORY_DISPLAY, type ApiIssue, type ApiPagination } from "@/lib/api";
 import StatusBadge from "@/components/StatusBadge";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { MapPin, FileText, ThumbsUp, Search, PlusCircle, ChevronLeft, ChevronRight, MoreVertical, CheckCircle, Loader2 } from "lucide-react";
+import { MapPin, FileText, ThumbsUp, Search, PlusCircle, ChevronLeft, ChevronRight, CheckCircle, Loader2 } from "lucide-react";
 import { Link } from "react-router-dom";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+
+const PAGE_SIZE = 10;
 
 const ProfilePage = () => {
   const { user } = useAuth();
   const [myIssues, setMyIssues] = useState<ApiIssue[]>([]);
+  const [pagination, setPagination] = useState<ApiPagination | null>(null);
+  const [currentPage, setCurrentPage] = useState(1);
   const [loading, setLoading] = useState(true);
+  const [pageLoading, setPageLoading] = useState(false);
   const [search, setSearch] = useState("");
+  const [debouncedSearch, setDebouncedSearch] = useState("");
   const [statusFilter, setStatusFilter] = useState("All Status");
-  const [page, setPage] = useState(1);
+  // Stats: fetched once on mount (total/resolved/upvotes)
+  const [totalCount, setTotalCount] = useState(0);
+  const [resolvedCount, setResolvedCount] = useState(0);
+  const [totalUpvotes, setTotalUpvotes] = useState(0);
+  const debounceRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
+  const statusColors: Record<string, string> = { Pending: "bg-amber-500", Ongoing: "bg-orange-500", Resolved: "bg-emerald-500", Escalated: "bg-red-500" };
+
+  // Debounce search input
+  useEffect(() => {
+    if (debounceRef.current) clearTimeout(debounceRef.current);
+    debounceRef.current = setTimeout(() => setDebouncedSearch(search), 350);
+    return () => { if (debounceRef.current) clearTimeout(debounceRef.current); };
+  }, [search]);
+
+  // Load first page + stat totals on mount
   useEffect(() => {
     if (!user) return;
     setLoading(true);
-    issuesApi.byUser(user.id)
-      .then((res) => setMyIssues(res.issues))
+    // Fetch first page + a small "all" fetch just for stats (max 100, fast)
+    Promise.all([
+      issuesApi.byUser(user.id, { page: "1", limit: String(PAGE_SIZE) }),
+      issuesApi.byUser(user.id, { limit: "100" }),
+    ])
+      .then(([pageRes, allRes]) => {
+        setMyIssues(pageRes.issues);
+        setPagination(pageRes.pagination ?? null);
+        setTotalCount(pageRes.pagination?.total ?? pageRes.issues.length);
+        const all = allRes.issues;
+        setResolvedCount(all.filter((i) => i.status === "Resolved").length);
+        setTotalUpvotes(all.reduce((s, i) => s + (i._count?.upvotes ?? 0), 0));
+      })
       .catch(console.error)
       .finally(() => setLoading(false));
   }, [user]);
 
-  const resolvedCount = myIssues.filter((i) => i.status === "Resolved").length;
-  const totalUpvotes = myIssues.reduce((sum, i) => sum + (i._count?.upvotes ?? 0), 0);
+  const fetchPage = useCallback(async (page: number, q: string, status: string) => {
+    if (!user) return;
+    setPageLoading(true);
+    const params: Record<string, string> = { page: String(page), limit: String(PAGE_SIZE) };
+    if (q.trim()) params.search = q.trim();
+    if (status !== "All Status") params.status = status;
+    try {
+      const res = await issuesApi.byUser(user.id, params);
+      setMyIssues(res.issues);
+      setPagination(res.pagination ?? null);
+      setCurrentPage(page);
+    } catch (err) {
+      console.error(err);
+    } finally {
+      setPageLoading(false);
+    }
+  }, [user]);
 
-  const filtered = myIssues.filter((i) => {
-    const matchSearch = !search || i.title.toLowerCase().includes(search.toLowerCase());
-    const matchStatus = statusFilter === "All Status" || i.status === statusFilter;
-    return matchSearch && matchStatus;
-  });
-
-  const statusColors: Record<string, string> = { Pending: "bg-amber-500", Ongoing: "bg-orange-500", Resolved: "bg-emerald-500", Escalated: "bg-red-500" };
+  // Re-fetch when filters change
+  useEffect(() => {
+    if (loading) return;
+    fetchPage(1, debouncedSearch, statusFilter);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [debouncedSearch, statusFilter]);
 
   if (loading) {
     return <div className="civic-container civic-section flex justify-center py-20"><Loader2 className="h-8 w-8 animate-spin text-primary" /></div>;
@@ -57,7 +102,7 @@ const ProfilePage = () => {
         <div className="flex gap-4">
           <div className="rounded-xl border bg-background px-6 py-3 text-center">
             <p className="text-caption text-muted-foreground">Issues Reported</p>
-            <p className="text-h3 text-primary">{myIssues.length}</p>
+            <p className="text-h3 text-primary">{totalCount}</p>
           </div>
           <div className="rounded-xl border bg-background px-6 py-3 text-center">
             <p className="text-caption text-muted-foreground">Resolved</p>
@@ -94,35 +139,56 @@ const ProfilePage = () => {
                 </Select>
               </div>
 
-              <div className="space-y-4">
-                {filtered.map((issue) => (
-                  <div key={issue.id} className="overflow-hidden rounded-xl border bg-card shadow-sm">
-                    <div className="flex gap-0">
-                      <img src={issue.image} alt={issue.title} className="h-32 w-28 shrink-0 object-cover" />
-                      <div className="flex flex-1 flex-col justify-between p-4">
-                        <div>
-                          <div className="mb-1 flex items-center gap-2">
-                            <StatusBadge status={issue.status} />
-                            <span className="text-label text-muted-foreground">Reported {getRelativeTime(issue.createdAt)}</span>
+              {pageLoading ? (
+                <div className="flex justify-center py-12"><Loader2 className="h-7 w-7 animate-spin text-primary" /></div>
+              ) : (
+                <div className="space-y-4">
+                  {myIssues.map((issue) => (
+                    <div key={issue.id} className="overflow-hidden rounded-xl border bg-card shadow-sm">
+                      <div className="flex gap-0">
+                        <img src={issue.image} alt={issue.title} className="h-32 w-28 shrink-0 object-cover" loading="lazy" />
+                        <div className="flex flex-1 flex-col justify-between p-4">
+                          <div>
+                            <div className="mb-1 flex items-center gap-2">
+                              <StatusBadge status={issue.status} />
+                              <span className="text-label text-muted-foreground">Reported {getRelativeTime(issue.createdAt)}</span>
+                            </div>
+                            <h3 className="text-body font-semibold text-foreground">{issue.title}</h3>
+                            <p className="mt-1 line-clamp-2 text-caption text-muted-foreground">{issue.description}</p>
                           </div>
-                          <h3 className="text-body font-semibold text-foreground">{issue.title}</h3>
-                          <p className="mt-1 line-clamp-2 text-caption text-muted-foreground">{issue.description}</p>
-                        </div>
-                        <div className="mt-2 flex items-center justify-between">
-                          <div className="flex items-center gap-3 text-caption text-muted-foreground">
-                            <span className="flex items-center gap-1"><ThumbsUp className="h-3.5 w-3.5" /> {issue._count?.upvotes ?? 0}</span>
-                            <span className="flex items-center gap-1">💬 {issue._count?.comments ?? 0}</span>
-                            <span className="rounded-md border px-2 py-0.5 text-label">{CATEGORY_DISPLAY[issue.category] || issue.category}</span>
+                          <div className="mt-2 flex items-center justify-between">
+                            <div className="flex items-center gap-3 text-caption text-muted-foreground">
+                              <span className="flex items-center gap-1"><ThumbsUp className="h-3.5 w-3.5" /> {issue._count?.upvotes ?? 0}</span>
+                              <span className="flex items-center gap-1">💬 {issue._count?.comments ?? 0}</span>
+                              <span className="rounded-md border px-2 py-0.5 text-label">{CATEGORY_DISPLAY[issue.category] || issue.category}</span>
+                            </div>
+                            <Link to={`/dashboard/issue/${issue.id}`} className="text-caption font-medium text-primary hover:underline">View Details →</Link>
                           </div>
-                          <Link to={`/dashboard/issue/${issue.id}`} className="text-caption font-medium text-primary hover:underline">View Details →</Link>
                         </div>
                       </div>
+                      <div className={`h-1 ${statusColors[issue.status] || "bg-muted"}`} />
                     </div>
-                    <div className={`h-1 ${statusColors[issue.status] || "bg-muted"}`} />
+                  ))}
+                  {myIssues.length === 0 && <p className="py-8 text-center text-muted-foreground">No issues found.</p>}
+                </div>
+              )}
+
+              {/* Pagination */}
+              {pagination && pagination.totalPages > 1 && (
+                <div className="mt-6 flex items-center justify-between">
+                  <p className="text-caption text-muted-foreground">
+                    Page {currentPage} of {pagination.totalPages}
+                  </p>
+                  <div className="flex items-center gap-2">
+                    <Button variant="outline" size="sm" disabled={currentPage <= 1 || pageLoading} onClick={() => fetchPage(currentPage - 1, debouncedSearch, statusFilter)} className="gap-1">
+                      <ChevronLeft className="h-4 w-4" /> Prev
+                    </Button>
+                    <Button variant="outline" size="sm" disabled={currentPage >= pagination.totalPages || pageLoading} onClick={() => fetchPage(currentPage + 1, debouncedSearch, statusFilter)} className="gap-1">
+                      Next <ChevronRight className="h-4 w-4" />
+                    </Button>
                   </div>
-                ))}
-                {filtered.length === 0 && <p className="py-8 text-center text-muted-foreground">No issues found.</p>}
-              </div>
+                </div>
+              )}
             </TabsContent>
 
             <TabsContent value="upvoted">

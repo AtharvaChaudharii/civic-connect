@@ -1,47 +1,67 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useCallback, useRef } from "react";
 import { useAuth } from "@/contexts/AuthContext";
-import { issues as issuesApi, CATEGORY_DISPLAY, type ApiIssue } from "@/lib/api";
+import { issues as issuesApi, CATEGORY_DISPLAY, CATEGORY_API_VALUE, type ApiIssue, type ApiPagination } from "@/lib/api";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import StatusBadge from "@/components/StatusBadge";
-import { Search, MapPin, ThumbsUp, MessageSquare, Users, Loader2 } from "lucide-react";
+import { Search, MapPin, ThumbsUp, MessageSquare, Users, Loader2, ChevronLeft, ChevronRight } from "lucide-react";
 import { Link } from "react-router-dom";
 
 const categoryOptions = ["All Categories", "Garbage", "Pothole", "Water Overflow", "Street Light", "Drainage", "Footpath"];
 const statusOptions = ["All Status", "Pending", "Ongoing", "Resolved", "Escalated"];
+const PAGE_SIZE = 12;
 
 const SearchPage = () => {
   const { user } = useAuth();
-  const [allIssues, setAllIssues] = useState<ApiIssue[]>([]);
-  const [loading, setLoading] = useState(true);
+  const [issues, setIssues] = useState<ApiIssue[]>([]);
+  const [pagination, setPagination] = useState<ApiPagination | null>(null);
+  const [currentPage, setCurrentPage] = useState(1);
+  const [loading, setLoading] = useState(false);
   const [search, setSearch] = useState("");
+  const [debouncedSearch, setDebouncedSearch] = useState("");
   const [category, setCategory] = useState("All Categories");
   const [status, setStatus] = useState("All Status");
-  const [visibleCount, setVisibleCount] = useState(6);
+  const debounceRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
+  // Debounce the search input — only fire API after 350ms of no typing
   useEffect(() => {
+    if (debounceRef.current) clearTimeout(debounceRef.current);
+    debounceRef.current = setTimeout(() => setDebouncedSearch(search), 350);
+    return () => { if (debounceRef.current) clearTimeout(debounceRef.current); };
+  }, [search]);
+
+  const fetchIssues = useCallback(async (page: number) => {
     if (!user) return;
     setLoading(true);
-    issuesApi.list({ cityId: user.cityId })
-      .then((res) => setAllIssues(res.issues))
-      .catch(console.error)
-      .finally(() => setLoading(false));
-  }, [user]);
+    const params: Record<string, string> = {
+      limit: String(PAGE_SIZE),
+      page: String(page),
+    };
+    if (user.cityId) params.cityId = user.cityId;
+    if (debouncedSearch.trim()) params.search = debouncedSearch.trim();
+    if (category !== "All Categories") {
+      params.category = CATEGORY_API_VALUE[category] ?? category;
+    }
+    if (status !== "All Status") params.status = status;
 
-  const filtered = allIssues.filter((issue) => {
-    const matchSearch = !search || issue.title.toLowerCase().includes(search.toLowerCase()) || issue.location.toLowerCase().includes(search.toLowerCase());
-    const displayCat = CATEGORY_DISPLAY[issue.category] || issue.category;
-    const matchCategory = category === "All Categories" || displayCat === category;
-    const matchStatus = status === "All Status" || issue.status === status;
-    return matchSearch && matchCategory && matchStatus;
-  });
+    try {
+      const res = await issuesApi.list(params);
+      setIssues(res.issues);
+      setPagination(res.pagination);
+      setCurrentPage(page);
+    } catch (err) {
+      console.error(err);
+    } finally {
+      setLoading(false);
+    }
+  }, [user, debouncedSearch, category, status]);
 
-  const visible = filtered.slice(0, visibleCount);
-
-  if (loading) {
-    return <div className="civic-container civic-section flex justify-center py-20"><Loader2 className="h-8 w-8 animate-spin text-primary" /></div>;
-  }
+  // Re-fetch from page 1 whenever filters change
+  useEffect(() => {
+    fetchIssues(1);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [debouncedSearch, category, status]);
 
   return (
     <div className="civic-container civic-section">
@@ -63,10 +83,12 @@ const SearchPage = () => {
         </Select>
       </div>
 
-      {visible.length > 0 ? (
+      {loading ? (
+        <div className="flex justify-center py-20"><Loader2 className="h-8 w-8 animate-spin text-primary" /></div>
+      ) : issues.length > 0 ? (
         <>
           <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-3">
-            {visible.map((issue) => (
+            {issues.map((issue) => (
               <div key={issue.id} className="group overflow-hidden rounded-xl border bg-card shadow-sm civic-card-hover">
                 <div className="relative aspect-[16/10] overflow-hidden">
                   <img src={issue.image} alt={issue.title} className="h-full w-full object-cover transition-transform duration-300 group-hover:scale-105" loading="lazy" />
@@ -90,9 +112,21 @@ const SearchPage = () => {
               </div>
             ))}
           </div>
-          {visibleCount < filtered.length && (
-            <div className="mt-8 text-center">
-              <Button variant="outline" onClick={() => setVisibleCount((c) => c + 6)}>Load More Issues</Button>
+
+          {/* Pagination */}
+          {pagination && pagination.totalPages > 1 && (
+            <div className="mt-8 flex items-center justify-between">
+              <p className="text-caption text-muted-foreground">
+                Page {currentPage} of {pagination.totalPages} &middot; {pagination.total} issues
+              </p>
+              <div className="flex items-center gap-2">
+                <Button variant="outline" size="sm" disabled={currentPage <= 1 || loading} onClick={() => fetchIssues(currentPage - 1)} className="gap-1">
+                  <ChevronLeft className="h-4 w-4" /> Prev
+                </Button>
+                <Button variant="outline" size="sm" disabled={currentPage >= pagination.totalPages || loading} onClick={() => fetchIssues(currentPage + 1)} className="gap-1">
+                  Next <ChevronRight className="h-4 w-4" />
+                </Button>
+              </div>
             </div>
           )}
         </>

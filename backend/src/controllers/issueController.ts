@@ -97,6 +97,7 @@ export async function reportIssue(req: Request, res: Response): Promise<void> {
 /**
  * GET /api/issues
  * List issues with filters.
+ * Optimised: explicit select to avoid fetching unused columns; enforced pagination.
  */
 export async function getIssues(req: Request, res: Response): Promise<void> {
     try {
@@ -114,13 +115,27 @@ export async function getIssues(req: Request, res: Response): Promise<void> {
         }
 
         const pageNum = Math.max(1, parseInt(page as string, 10));
-        const limitNum = Math.min(50, Math.max(1, parseInt(limit as string, 10)));
+        // Cap at 20 per page for the feed to keep response fast
+        const limitNum = Math.min(20, Math.max(1, parseInt(limit as string, 10)));
         const skip = (pageNum - 1) * limitNum;
 
         const [issues, total] = await Promise.all([
             prisma.issuePost.findMany({
                 where,
-                include: {
+                select: {
+                    id: true,
+                    title: true,
+                    description: true,
+                    category: true,
+                    location: true,
+                    lat: true,
+                    lng: true,
+                    image: true,
+                    status: true,
+                    reporters: true,
+                    createdAt: true,
+                    updatedAt: true,
+                    consolidatedTicketId: true,
                     reportedBy: { select: { id: true, name: true, role: true } },
                     city: { select: { id: true, name: true } },
                     _count: { select: { comments: true, upvotes: true } },
@@ -186,12 +201,32 @@ export async function getIssueById(req: Request, res: Response): Promise<void> {
 
         const issue = await prisma.issuePost.findUnique({
             where: { id },
-            include: {
+            select: {
+                id: true,
+                title: true,
+                description: true,
+                category: true,
+                location: true,
+                lat: true,
+                lng: true,
+                status: true,
+                image: true,
+                reporters: true,
+                createdAt: true,
+                updatedAt: true,
                 reportedBy: { select: { id: true, name: true, role: true, avatar: true } },
                 city: { select: { id: true, name: true } },
                 comments: {
-                    include: { user: { select: { id: true, name: true, role: true, avatar: true } } },
+                    select: {
+                        id: true,
+                        content: true,
+                        image: true,
+                        isDepartmentUpdate: true,
+                        createdAt: true,
+                        user: { select: { id: true, name: true, role: true, avatar: true } },
+                    },
                     orderBy: { createdAt: "asc" },
+                    take: 50, // Limit comments to 50 most recent
                 },
                 upvotes: { select: { userId: true } },
                 consolidatedTicket: {
@@ -214,28 +249,30 @@ export async function getIssueById(req: Request, res: Response): Promise<void> {
 
 /**
  * POST /api/issues/:id/upvote
- * Toggle upvote — single upsert/delete, no existence check.
+ * Toggle upvote — atomic: try create, if unique constraint fires then delete.
+ * Saves one extra SELECT round-trip vs find-then-act.
  */
 export async function toggleUpvote(req: Request, res: Response): Promise<void> {
     try {
         const issuePostId = req.params.id as string;
         const userId = req.user!.id;
 
-        // Try to find and delete in one query
-        const existing = await prisma.upvote.findUnique({
-            where: { userId_issuePostId: { userId, issuePostId } },
-            select: { id: true },
-        });
-
-        if (existing) {
-            await prisma.upvote.delete({ where: { id: existing.id } });
-            res.json({ message: "Upvote removed.", upvoted: false });
-        } else {
+        try {
+            // Optimistic create — will throw P2002 if already upvoted
             await prisma.upvote.create({ data: { userId, issuePostId } });
             res.json({ message: "Issue upvoted.", upvoted: true });
+        } catch (createError: any) {
+            if (createError?.code === "P2002") {
+                // Already upvoted → delete (toggle off)
+                await prisma.upvote.delete({
+                    where: { userId_issuePostId: { userId, issuePostId } },
+                });
+                res.json({ message: "Upvote removed.", upvoted: false });
+            } else {
+                throw createError;
+            }
         }
     } catch (error: any) {
-        // Handle case where issue doesn't exist (FK violation)
         if (error?.code === "P2003") {
             res.status(404).json({ error: "Issue not found." });
             return;
@@ -281,21 +318,51 @@ export async function addComment(req: Request, res: Response): Promise<void> {
 
 /**
  * GET /api/issues/user/:userId
+ * Optimised: select only needed fields; add pagination.
  */
 export async function getUserIssues(req: Request, res: Response): Promise<void> {
     try {
         const userId = req.params.userId as string;
+        const { page = "1", limit = "20", search, status } = req.query;
 
-        const issues = await prisma.issuePost.findMany({
-            where: { reportedById: userId },
-            include: {
-                city: { select: { id: true, name: true } },
-                _count: { select: { comments: true, upvotes: true } },
-            },
-            orderBy: { createdAt: "desc" },
-        });
+        const pageNum = Math.max(1, parseInt(page as string, 10));
+        const limitNum = Math.min(20, Math.max(1, parseInt(limit as string, 10)));
+        const skip = (pageNum - 1) * limitNum;
 
-        res.json({ issues });
+        const where: Record<string, unknown> = { reportedById: userId };
+        if (status && status !== "All Status") where.status = status as string;
+        if (search && (search as string).trim()) {
+            where.OR = [
+                { title: { contains: (search as string).trim(), mode: "insensitive" } },
+                { location: { contains: (search as string).trim(), mode: "insensitive" } },
+            ];
+        }
+
+        const [issues, total] = await Promise.all([
+            prisma.issuePost.findMany({
+                where,
+                select: {
+                    id: true,
+                    title: true,
+                    description: true,
+                    category: true,
+                    location: true,
+                    image: true,
+                    status: true,
+                    reporters: true,
+                    createdAt: true,
+                    updatedAt: true,
+                    city: { select: { id: true, name: true } },
+                    _count: { select: { comments: true, upvotes: true } },
+                },
+                orderBy: { createdAt: "desc" },
+                skip,
+                take: limitNum,
+            }),
+            prisma.issuePost.count({ where }),
+        ]);
+
+        res.json({ issues, pagination: { page: pageNum, limit: limitNum, total, totalPages: Math.ceil(total / limitNum) } });
     } catch (error) {
         console.error("Get user issues error:", error);
         res.status(500).json({ error: "Something went wrong. Please try again." });

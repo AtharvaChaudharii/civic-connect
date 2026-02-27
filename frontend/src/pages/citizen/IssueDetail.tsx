@@ -62,31 +62,65 @@ const IssueDetail = () => {
 
   const handleUpvote = async () => {
     if (!id) return;
+    
+    // Optimistic update - instant feedback
+    const wasUpvoted = upvoted;
+    const prevCount = upvoteCount;
+    setUpvoted(!wasUpvoted);
+    setUpvoteCount(wasUpvoted ? prevCount - 1 : prevCount + 1);
+
     try {
       const res = await issuesApi.upvote(id);
+      // Sync with server response
+      if (res.upvoted !== !wasUpvoted) {
+        setUpvoted(res.upvoted);
+        setUpvoteCount(res.upvoted ? prevCount + 1 : prevCount - 1);
+      }
       if (res.upvoted) {
-        setUpvoteCount((c) => c + 1);
-        setUpvoted(true);
         toast({ title: "Issue upvoted!", description: "You're helping prioritize this issue." });
       } else {
-        setUpvoteCount((c) => c - 1);
-        setUpvoted(false);
         toast({ title: "Upvote removed" });
       }
     } catch {
+      // Revert on error
+      setUpvoted(wasUpvoted);
+      setUpvoteCount(prevCount);
       toast({ title: "Failed to upvote", variant: "destructive" });
     }
   };
 
   const handlePostComment = async () => {
-    if (!newComment.trim() || !id) return;
+    if (!newComment.trim() || !id || !user) return;
+    
+    // Optimistic update - show comment immediately
+    const tempComment: ApiComment = {
+      id: `temp-${Date.now()}`,
+      content: newComment.trim(),
+      image: null,
+      isDepartmentUpdate: false,
+      createdAt: new Date().toISOString(),
+      user: {
+        id: user.id,
+        name: user.name,
+        role: user.role,
+        avatar: user.avatar || null,
+      },
+    };
+    
+    setComments((prev) => [...prev, tempComment]);
+    const commentText = newComment.trim();
+    setNewComment("");
     setSubmittingComment(true);
+
     try {
-      const res = await issuesApi.addComment(id, newComment.trim());
-      setComments((prev) => [...prev, res.comment]);
-      setNewComment("");
+      const res = await issuesApi.addComment(id, commentText);
+      // Replace temp comment with real one from server
+      setComments((prev) => prev.map(c => c.id === tempComment.id ? res.comment : c));
       toast({ title: "Comment posted" });
     } catch {
+      // Remove temp comment on error
+      setComments((prev) => prev.filter(c => c.id !== tempComment.id));
+      setNewComment(commentText); // Restore text
       toast({ title: "Failed to post comment", variant: "destructive" });
     } finally {
       setSubmittingComment(false);

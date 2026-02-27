@@ -1,31 +1,63 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useCallback } from "react";
 import { useAuth } from "@/contexts/AuthContext";
-import { tickets as ticketsApi, CATEGORY_DISPLAY, type ApiTicket, type ApiTicketStats } from "@/lib/api";
+import { tickets as ticketsApi, CATEGORY_DISPLAY, type ApiTicket, type ApiTicketStats, type ApiPagination } from "@/lib/api";
 import StatusBadge from "@/components/StatusBadge";
 import { Button } from "@/components/ui/button";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
-import { BarChart3, CheckCircle, Clock, AlertTriangle, Package, Loader2, TrendingUp, MapPin } from "lucide-react";
+import { BarChart3, CheckCircle, Clock, AlertTriangle, Package, Loader2, TrendingUp, MapPin, ChevronLeft, ChevronRight } from "lucide-react";
 import { Link } from "react-router-dom";
+
+const PAGE_SIZE = 15;
 
 const DeptDashboard = () => {
   const { user } = useAuth();
   const [allTickets, setAllTickets] = useState<ApiTicket[]>([]);
+  const [pagination, setPagination] = useState<ApiPagination | null>(null);
+  const [currentPage, setCurrentPage] = useState(1);
   const [stats, setStats] = useState<ApiTicketStats | null>(null);
   const [loading, setLoading] = useState(true);
+  const [pageLoading, setPageLoading] = useState(false);
   const [statusFilter, setStatusFilter] = useState("All");
 
+  // Initial load: tickets page 1 + stats in parallel
   useEffect(() => {
     setLoading(true);
-    Promise.all([ticketsApi.list(), ticketsApi.stats()])
-      .then(([tRes, sRes]) => { setAllTickets(tRes.tickets); setStats(sRes.stats); })
+    const params: Record<string, string> = { limit: String(PAGE_SIZE), page: "1" };
+    Promise.all([ticketsApi.list(params), ticketsApi.stats()])
+      .then(([tRes, sRes]) => {
+        setAllTickets(tRes.tickets);
+        setPagination(tRes.pagination);
+        setStats(sRes.stats);
+        setCurrentPage(1);
+      })
       .catch(console.error)
       .finally(() => setLoading(false));
   }, []);
 
-  const filteredTickets = statusFilter === "All"
-    ? allTickets
-    : allTickets.filter((t) => t.status === statusFilter);
+  // Fetch a specific page with optional status filter (server-side)
+  const fetchPage = useCallback(async (page: number, status: string) => {
+    setPageLoading(true);
+    const params: Record<string, string> = { limit: String(PAGE_SIZE), page: String(page) };
+    if (status !== "All") params.status = status;
+    try {
+      const res = await ticketsApi.list(params);
+      setAllTickets(res.tickets);
+      setPagination(res.pagination);
+      setCurrentPage(page);
+    } catch (err) {
+      console.error(err);
+    } finally {
+      setPageLoading(false);
+    }
+  }, []);
+
+  // Re-fetch from page 1 when filter changes
+  useEffect(() => {
+    if (loading) return;
+    fetchPage(1, statusFilter);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [statusFilter]);
 
   if (loading) {
     return <div className="civic-container civic-section flex justify-center py-20"><Loader2 className="h-8 w-8 animate-spin text-primary" /></div>;
@@ -84,52 +116,87 @@ const DeptDashboard = () => {
       </div>
 
       <div className="rounded-xl border bg-card shadow-sm">
-        <Table>
-          <TableHeader>
-            <TableRow>
-              <TableHead className="text-label uppercase tracking-wider">Issue</TableHead>
-              <TableHead className="text-label uppercase tracking-wider">Category</TableHead>
-              <TableHead className="text-label uppercase tracking-wider">Location</TableHead>
-              <TableHead className="text-label uppercase tracking-wider">Reporters</TableHead>
-              <TableHead className="text-label uppercase tracking-wider">Status</TableHead>
-              <TableHead className="text-label uppercase tracking-wider">Date</TableHead>
-              <TableHead />
-            </TableRow>
-          </TableHeader>
-          <TableBody>
-            {filteredTickets.length > 0 ? filteredTickets.map((ticket) => {
-              const primary = ticket.issuePosts[0];
-              const totalReporters = ticket.issuePosts.reduce((s, p) => s + p.reporters, 0);
-              return (
-                <TableRow key={ticket.id}>
-                  <TableCell>
-                    <div>
-                      <p className="text-caption font-medium text-foreground">{primary?.title || "Untitled"}</p>
-                      <p className="text-label text-muted-foreground">#{ticket.id.slice(0, 8)}</p>
-                    </div>
-                  </TableCell>
-                  <TableCell className="text-caption text-muted-foreground">{CATEGORY_DISPLAY[primary?.category ?? ""] || primary?.category}</TableCell>
-                  <TableCell>
-                    <span className="flex items-center gap-1 text-caption text-muted-foreground"><MapPin className="h-3.5 w-3.5" /> {primary?.location}</span>
-                  </TableCell>
-                  <TableCell className="text-caption text-foreground">{totalReporters}</TableCell>
-                  <TableCell><StatusBadge status={ticket.status} /></TableCell>
-                  <TableCell className="text-caption text-muted-foreground">{new Date(ticket.createdAt).toLocaleDateString("en-IN", { day: "numeric", month: "short" })}</TableCell>
-                  <TableCell>
-                    <Link to={`/department/ticket/${ticket.id}`}>
-                      <Button variant="outline" size="sm" className="text-caption">View</Button>
-                    </Link>
-                  </TableCell>
-                </TableRow>
-              );
-            }) : (
+        {pageLoading ? (
+          <div className="flex justify-center py-12">
+            <Loader2 className="h-7 w-7 animate-spin text-primary" />
+          </div>
+        ) : (
+          <Table>
+            <TableHeader>
               <TableRow>
-                <TableCell colSpan={7} className="py-12 text-center text-muted-foreground">No tickets found.</TableCell>
+                <TableHead className="text-label uppercase tracking-wider">Issue</TableHead>
+                <TableHead className="text-label uppercase tracking-wider">Category</TableHead>
+                <TableHead className="text-label uppercase tracking-wider">Location</TableHead>
+                <TableHead className="text-label uppercase tracking-wider">Reporters</TableHead>
+                <TableHead className="text-label uppercase tracking-wider">Status</TableHead>
+                <TableHead className="text-label uppercase tracking-wider">Date</TableHead>
+                <TableHead />
               </TableRow>
-            )}
-          </TableBody>
-        </Table>
+            </TableHeader>
+            <TableBody>
+              {allTickets.length > 0 ? allTickets.map((ticket) => {
+                const primary = ticket.issuePosts[0];
+                const totalReporters = ticket.issuePosts.reduce((s, p) => s + p.reporters, 0);
+                return (
+                  <TableRow key={ticket.id}>
+                    <TableCell>
+                      <div>
+                        <p className="text-caption font-medium text-foreground">{primary?.title || "Untitled"}</p>
+                        <p className="text-label text-muted-foreground">#{ticket.id.slice(0, 8)}</p>
+                      </div>
+                    </TableCell>
+                    <TableCell className="text-caption text-muted-foreground">{CATEGORY_DISPLAY[primary?.category ?? ""] || primary?.category}</TableCell>
+                    <TableCell>
+                      <span className="flex items-center gap-1 text-caption text-muted-foreground"><MapPin className="h-3.5 w-3.5" /> {primary?.location}</span>
+                    </TableCell>
+                    <TableCell className="text-caption text-foreground">{totalReporters}</TableCell>
+                    <TableCell><StatusBadge status={ticket.status} /></TableCell>
+                    <TableCell className="text-caption text-muted-foreground">{new Date(ticket.createdAt).toLocaleDateString("en-IN", { day: "numeric", month: "short" })}</TableCell>
+                    <TableCell>
+                      <Link to={`/department/ticket/${ticket.id}`}>
+                        <Button variant="outline" size="sm" className="text-caption">View</Button>
+                      </Link>
+                    </TableCell>
+                  </TableRow>
+                );
+              }) : (
+                <TableRow>
+                  <TableCell colSpan={7} className="py-12 text-center text-muted-foreground">No tickets found.</TableCell>
+                </TableRow>
+              )}
+            </TableBody>
+          </Table>
+        )}
       </div>
+
+      {/* Pagination */}
+      {pagination && pagination.totalPages > 1 && (
+        <div className="mt-4 flex items-center justify-between">
+          <p className="text-caption text-muted-foreground">
+            Page {currentPage} of {pagination.totalPages} &middot; {pagination.total} tickets
+          </p>
+          <div className="flex items-center gap-2">
+            <Button
+              variant="outline"
+              size="sm"
+              disabled={currentPage <= 1 || pageLoading}
+              onClick={() => fetchPage(currentPage - 1, statusFilter)}
+              className="gap-1"
+            >
+              <ChevronLeft className="h-4 w-4" /> Prev
+            </Button>
+            <Button
+              variant="outline"
+              size="sm"
+              disabled={currentPage >= pagination.totalPages || pageLoading}
+              onClick={() => fetchPage(currentPage + 1, statusFilter)}
+              className="gap-1"
+            >
+              Next <ChevronRight className="h-4 w-4" />
+            </Button>
+          </div>
+        </div>
+      )}
     </div>
   );
 };

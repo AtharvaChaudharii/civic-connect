@@ -6,7 +6,7 @@ import { notifyIssueReporters } from "../services/notificationService.js";
 /**
  * GET /api/tickets
  * Get all consolidated tickets for the authenticated department user.
- * Filtered by department + city (enforced by city isolation middleware).
+ * Optimised: only fetch the first issue post for list view instead of all posts.
  */
 export async function getTickets(req: Request, res: Response): Promise<void> {
     try {
@@ -24,15 +24,24 @@ export async function getTickets(req: Request, res: Response): Promise<void> {
         if (status) where.status = status;
 
         const pageNum = Math.max(1, parseInt(page as string, 10));
-        const limitNum = Math.min(50, Math.max(1, parseInt(limit as string, 10)));
+        const limitNum = Math.min(20, Math.max(1, parseInt(limit as string, 10)));
         const skip = (pageNum - 1) * limitNum;
 
         const [tickets, total] = await Promise.all([
             prisma.consolidatedTicket.findMany({
                 where,
-                include: {
+                select: {
+                    id: true,
+                    status: true,
+                    proofImage: true,
+                    resolutionComment: true,
+                    escalatedAt: true,
+                    resolvedAt: true,
+                    createdAt: true,
+                    updatedAt: true,
                     department: { select: { id: true, name: true } },
                     city: { select: { id: true, name: true } },
+                    // Only fetch the first (original) post for list view — reduces data significantly
                     issuePosts: {
                         select: {
                             id: true,
@@ -48,6 +57,7 @@ export async function getTickets(req: Request, res: Response): Promise<void> {
                             reportedBy: { select: { id: true, name: true } },
                         },
                         orderBy: { createdAt: "asc" },
+                        take: 1,
                     },
                     _count: { select: { issuePosts: true } },
                 },
@@ -258,6 +268,7 @@ export async function uploadProof(req: Request, res: Response): Promise<void> {
 /**
  * GET /api/tickets/stats
  * Get department statistics.
+ * Optimised: single groupBy + one resolved-tickets query instead of 5 counts.
  */
 export async function getTicketStats(req: Request, res: Response): Promise<void> {
     try {
@@ -269,36 +280,44 @@ export async function getTicketStats(req: Request, res: Response): Promise<void>
             return;
         }
 
-        const [total, pending, ongoing, resolved, escalated] = await Promise.all([
-            prisma.consolidatedTicket.count({ where: { departmentId, cityId } }),
-            prisma.consolidatedTicket.count({ where: { departmentId, cityId, status: "Pending" } }),
-            prisma.consolidatedTicket.count({ where: { departmentId, cityId, status: "Ongoing" } }),
-            prisma.consolidatedTicket.count({ where: { departmentId, cityId, status: "Resolved" } }),
-            prisma.consolidatedTicket.count({ where: { departmentId, cityId, status: "Escalated" } }),
+        const [statusGroups, resolvedTickets] = await Promise.all([
+            // One groupBy replaces 5 separate counts
+            prisma.consolidatedTicket.groupBy({
+                by: ["status"],
+                where: { departmentId, cityId },
+                _count: { _all: true },
+            }),
+            prisma.consolidatedTicket.findMany({
+                where: { departmentId, cityId, status: "Resolved", resolvedAt: { not: null } },
+                select: { createdAt: true, resolvedAt: true },
+            }),
         ]);
 
-        // Average resolution time
-        const resolvedTickets = await prisma.consolidatedTicket.findMany({
-            where: { departmentId, cityId, status: "Resolved", resolvedAt: { not: null } },
-            select: { createdAt: true, resolvedAt: true },
-        });
+        type StatusGroup = { status: string; _count: { _all: number } };
+        const statusMap = new Map<string, number>();
+        let total = 0;
+        for (const g of statusGroups as StatusGroup[]) {
+            statusMap.set(g.status, g._count._all);
+            total += g._count._all;
+        }
 
         let avgResolutionDays = 0;
         if (resolvedTickets.length > 0) {
-            const totalDays = resolvedTickets.reduce((sum: number, t: { resolvedAt: Date | null; createdAt: Date }) => {
-                const diff = (t.resolvedAt!.getTime() - t.createdAt.getTime()) / (1000 * 60 * 60 * 24);
-                return sum + diff;
-            }, 0);
+            const totalDays = resolvedTickets.reduce(
+                (sum: number, t: { resolvedAt: Date | null; createdAt: Date }) =>
+                    sum + (t.resolvedAt!.getTime() - t.createdAt.getTime()) / (1000 * 60 * 60 * 24),
+                0
+            );
             avgResolutionDays = Math.round((totalDays / resolvedTickets.length) * 10) / 10;
         }
 
         res.json({
             stats: {
                 total,
-                pending,
-                ongoing,
-                resolved,
-                escalated,
+                pending: statusMap.get("Pending") ?? 0,
+                ongoing: statusMap.get("Ongoing") ?? 0,
+                resolved: statusMap.get("Resolved") ?? 0,
+                escalated: statusMap.get("Escalated") ?? 0,
                 avgResolutionDays,
             },
         });

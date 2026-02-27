@@ -109,8 +109,10 @@ export const issues = {
             body: JSON.stringify({ content }),
         }),
 
-    byUser: (userId: string) =>
-        request<{ issues: ApiIssue[] }>(`/issues/user/${userId}`),
+    byUser: (userId: string, params?: Record<string, string>) => {
+        const qs = params ? "?" + new URLSearchParams(params).toString() : "";
+        return request<{ issues: ApiIssue[]; pagination: ApiPagination }>(`/issues/user/${userId}${qs}`);
+    },
 };
 
 // ── Tickets (Department) ──

@@ -3,7 +3,7 @@ import prisma from "../config/db.js";
 type NotificationType = "info" | "success" | "warning" | "error";
 
 /**
- * Create a notification for a user.
+ * Create a notification for a single user.
  */
 export async function createNotification(
     userId: string,
@@ -13,18 +13,13 @@ export async function createNotification(
     issueId?: string
 ) {
     return prisma.notification.create({
-        data: {
-            userId,
-            title,
-            message,
-            type,
-            issueId,
-        },
+        data: { userId, title, message, type, issueId },
     });
 }
 
 /**
  * Notify all reporters of an issue post about a status change.
+ * Optimised: single createMany instead of N individual creates.
  */
 export async function notifyIssueReporters(
     consolidatedTicketId: string,
@@ -32,22 +27,30 @@ export async function notifyIssueReporters(
     message: string,
     type: NotificationType = "info"
 ) {
-    // Find all issue posts linked to this ticket
+    // Find all issue posts linked to this ticket in one query
     const posts = await prisma.issuePost.findMany({
         where: { consolidatedTicketId },
         select: { id: true, reportedById: true },
     });
 
-    // Create notifications for each reporter
-    const notifications = posts.map((post: { id: string; reportedById: string }) =>
-        createNotification(post.reportedById, title, message, type, post.id)
-    );
+    if (posts.length === 0) return;
 
-    return Promise.all(notifications);
+    // Bulk insert — single round-trip to DB
+    return prisma.notification.createMany({
+        data: posts.map((post: { id: string; reportedById: string }) => ({
+            userId: post.reportedById,
+            title,
+            message,
+            type,
+            issueId: post.id,
+        })),
+        skipDuplicates: true,
+    });
 }
 
 /**
  * Notify department users about new issue assignments.
+ * Optimised: single createMany instead of N individual creates.
  */
 export async function notifyDepartmentUsers(
     departmentId: string,
@@ -60,15 +63,23 @@ export async function notifyDepartmentUsers(
         select: { id: true },
     });
 
-    const notifications = deptUsers.map((user: { id: string }) =>
-        createNotification(user.id, title, message, "info", issueId)
-    );
+    if (deptUsers.length === 0) return;
 
-    return Promise.all(notifications);
+    return prisma.notification.createMany({
+        data: deptUsers.map((user: { id: string }) => ({
+            userId: user.id,
+            title,
+            message,
+            type: "info" as NotificationType,
+            issueId,
+        })),
+        skipDuplicates: true,
+    });
 }
 
 /**
  * Notify municipal corporation users about escalations.
+ * Optimised: single createMany instead of N individual creates.
  */
 export async function notifyMunicipalUsers(
     cityId: string,
@@ -82,9 +93,16 @@ export async function notifyMunicipalUsers(
         select: { id: true },
     });
 
-    const notifications = municipalUsers.map((user: { id: string }) =>
-        createNotification(user.id, title, message, type, issueId)
-    );
+    if (municipalUsers.length === 0) return;
 
-    return Promise.all(notifications);
+    return prisma.notification.createMany({
+        data: municipalUsers.map((user: { id: string }) => ({
+            userId: user.id,
+            title,
+            message,
+            type,
+            issueId,
+        })),
+        skipDuplicates: true,
+    });
 }

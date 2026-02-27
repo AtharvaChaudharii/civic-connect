@@ -138,7 +138,12 @@ model IssuePost {
   @@index([consolidatedTicketId])
   @@index([reportedById])
   @@index([lat, lng])
+  // Composite indexes for common query patterns
   @@index([cityId, category, status])
+  @@index([cityId, status, createdAt])   // paginated feed sorted by date
+  @@index([cityId, category, createdAt]) // category-filtered paginated feed
+  @@index([reportedById, status])        // profile page status filter
+  @@index([reportedById, createdAt])     // profile page time-sorted list
 }
 
 model ConsolidatedTicket {
@@ -165,6 +170,16 @@ model ConsolidatedTicket {
   @@index([cityId])
   @@index([status])
   @@index([escalationFlag])
+  // Composite indexes for the most common query patterns
+  @@index([departmentId, cityId])
+  @@index([departmentId, status])
+  @@index([cityId, status])
+  @@index([departmentId, cityId, status])
+  // For escalation job: status + escalationFlag + createdAt
+  @@index([status, escalationFlag, createdAt])
+  // For avg resolution time queries
+  @@index([departmentId, status, resolvedAt])
+  @@index([cityId, status, resolvedAt])
 }
 
 model Comment {
@@ -181,6 +196,7 @@ model Comment {
   issuePostId String
 
   @@index([issuePostId])
+  @@index([issuePostId, createdAt]) // For ordered comment fetching
 }
 
 model Notification {

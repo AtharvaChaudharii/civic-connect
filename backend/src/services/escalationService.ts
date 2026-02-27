@@ -9,7 +9,8 @@ import { notifyMunicipalUsers, notifyIssueReporters } from "./notificationServic
  * - Created more than 7 days ago
  * - Not already escalated
  *
- * Then mark them as Escalated and notify the Municipal Corporation.
+ * Optimised: batch update tickets + issue posts with updateMany instead of
+ * looping through individual update calls.
  */
 export async function runEscalation(): Promise<number> {
     const cutoffDate = new Date();
@@ -28,56 +29,51 @@ export async function runEscalation(): Promise<number> {
         },
     });
 
-    if (tickets.length === 0) {
-        return 0;
-    }
+    if (tickets.length === 0) return 0;
 
-    let escalatedCount = 0;
+    const ticketIds = tickets.map((t) => t.id);
+    const escalatedAt = new Date();
 
-    for (const ticket of tickets) {
-        // Update ticket
-        await prisma.consolidatedTicket.update({
-            where: { id: ticket.id },
-            data: {
-                status: "Escalated",
-                escalationFlag: true,
-                escalatedAt: new Date(),
-            },
-        });
+    // Batch update all eligible tickets in ONE query
+    await prisma.consolidatedTicket.updateMany({
+        where: { id: { in: ticketIds } },
+        data: {
+            status: "Escalated",
+            escalationFlag: true,
+            escalatedAt,
+        },
+    });
 
-        // Update all linked issue posts
-        await prisma.issuePost.updateMany({
-            where: { consolidatedTicketId: ticket.id },
-            data: {
-                status: "Escalated",
-                updatedAt: new Date(),
-            },
-        });
+    // Batch update all linked issue posts in ONE query
+    await prisma.issuePost.updateMany({
+        where: { consolidatedTicketId: { in: ticketIds } },
+        data: { status: "Escalated", updatedAt: escalatedAt },
+    });
 
-        // Build notification messages
-        const issueTitle = ticket.issuePosts[0]?.title || "Unknown Issue";
-        const deptName = ticket.department.name;
-        const cityName = ticket.department.city.name;
+    // Send notifications concurrently (still per-ticket for correct messaging)
+    await Promise.all(
+        tickets.map(async (ticket) => {
+            const issueTitle = ticket.issuePosts[0]?.title || "Unknown Issue";
+            const deptName = ticket.department.name;
+            const cityName = ticket.department.city.name;
 
-        // Notify Municipal Corporation
-        await notifyMunicipalUsers(
-            ticket.cityId,
-            "Escalation Alert",
-            `"${issueTitle}" has been escalated. The ${deptName} department has not responded for ${ESCALATION_DAYS} days.`,
-            "error",
-            ticket.issuePosts[0]?.id
-        );
+            await Promise.all([
+                notifyMunicipalUsers(
+                    ticket.cityId,
+                    "Escalation Alert",
+                    `"${issueTitle}" has been escalated. The ${deptName} department has not responded for ${ESCALATION_DAYS} days.`,
+                    "error",
+                    ticket.issuePosts[0]?.id
+                ),
+                notifyIssueReporters(
+                    ticket.id,
+                    "Issue Escalated",
+                    `"${issueTitle}" in ${cityName} has been escalated to the Municipal Corporation after ${ESCALATION_DAYS} days without resolution.`,
+                    "warning"
+                ),
+            ]);
+        })
+    );
 
-        // Notify reporters
-        await notifyIssueReporters(
-            ticket.id,
-            "Issue Escalated",
-            `"${issueTitle}" in ${cityName} has been escalated to the Municipal Corporation after ${ESCALATION_DAYS} days without resolution.`,
-            "warning"
-        );
-
-        escalatedCount++;
-    }
-
-    return escalatedCount;
+    return tickets.length;
 }
