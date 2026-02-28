@@ -2,7 +2,6 @@ import {
     createContext,
     useContext,
     useEffect,
-    useRef,
     useState,
     useCallback,
     type ReactNode,
@@ -47,7 +46,7 @@ const SocketContext = createContext<SocketContextType>({
  */
 export function SocketProvider({ children }: { children: ReactNode }) {
     const { user, isAuthenticated } = useAuth();
-    const socketRef = useRef<Socket | null>(null);
+    const [socket, setSocket] = useState<Socket | null>(null);
     const [isConnected, setIsConnected] = useState(false);
     const [unreadCount, setUnreadCount] = useState(0);
 
@@ -65,11 +64,11 @@ export function SocketProvider({ children }: { children: ReactNode }) {
     useEffect(() => {
         if (!isAuthenticated || !user) {
             // Disconnect on logout
-            if (socketRef.current) {
-                socketRef.current.disconnect();
-                socketRef.current = null;
-                setIsConnected(false);
-            }
+            setSocket((prev) => {
+                prev?.disconnect();
+                return null;
+            });
+            setIsConnected(false);
             return;
         }
 
@@ -77,52 +76,51 @@ export function SocketProvider({ children }: { children: ReactNode }) {
         if (!token) return;
 
         // Connect to the same origin — Vite proxy forwards /socket.io to backend
-        const socket = io({
+        const newSocket = io({
             auth: { token },
             transports: ["websocket", "polling"],
             reconnectionAttempts: 10,
             reconnectionDelay: 2000,
         });
 
-        socket.on("connect", () => {
-            console.log("🔌 Socket connected:", socket.id);
+        newSocket.on("connect", () => {
+            console.log("🔌 Socket connected:", newSocket.id);
             setIsConnected(true);
         });
 
-        socket.on("disconnect", () => {
+        newSocket.on("disconnect", () => {
             console.log("🔌 Socket disconnected");
             setIsConnected(false);
         });
 
-        socket.on("connect_error", (err) => {
+        newSocket.on("connect_error", (err) => {
             console.warn("🔌 Socket connection error:", err.message);
         });
 
-        socketRef.current = socket;
+        setSocket(newSocket);
 
         return () => {
-            socket.disconnect();
-            socketRef.current = null;
+            newSocket.disconnect();
+            setSocket(null);
             setIsConnected(false);
         };
     }, [isAuthenticated, user?.id]);
 
     const joinIssueRoom = useCallback((issueId: string) => {
-        socketRef.current?.emit("join:issue", issueId);
+        setSocket((s) => { s?.emit("join:issue", issueId); return s; });
     }, []);
 
     const leaveIssueRoom = useCallback((issueId: string) => {
-        socketRef.current?.emit("leave:issue", issueId);
+        setSocket((s) => { s?.emit("leave:issue", issueId); return s; });
     }, []);
 
     // Real-time: increment badge when a new notification arrives via socket
     useEffect(() => {
-        const socket = socketRef.current;
         if (!socket) return;
         const handleNew = () => setUnreadCount((c) => c + 1);
         socket.on(SOCKET_EVENTS.NOTIFICATION_NEW, handleNew);
         return () => { socket.off(SOCKET_EVENTS.NOTIFICATION_NEW, handleNew); };
-    }, [isConnected]); // re-attach when connection state changes
+    }, [socket]); // re-attach when socket instance changes
 
     const decrementUnread = useCallback((by = 1) => {
         setUnreadCount((c) => Math.max(0, c - by));
@@ -135,7 +133,7 @@ export function SocketProvider({ children }: { children: ReactNode }) {
     return (
         <SocketContext.Provider
             value={{
-                socket: socketRef.current,
+                socket,
                 isConnected,
                 joinIssueRoom,
                 leaveIssueRoom,
