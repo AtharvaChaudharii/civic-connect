@@ -4,6 +4,7 @@ import { reportIssueSchema, commentSchema } from "../utils/validators.js";
 import { CATEGORY_DEPARTMENT_MAP } from "../config/env.js";
 import { findDuplicateTicket } from "../services/duplicateDetection.js";
 import { notifyDepartmentUsers, createNotification } from "../services/notificationService.js";
+import { emitIssueCreated, emitIssueUpvoted, emitIssueCommented } from "../services/socketEvents.js";
 
 // Matches the IssueCategory enum in prisma/schema.prisma
 type IssueCategory = "Garbage" | "Pothole" | "WaterOverflow" | "StreetLight" | "Drainage" | "Footpath" | "Other";
@@ -80,6 +81,9 @@ export async function reportIssue(req: Request, res: Response): Promise<void> {
         // Fire notifications in background — don't await
         createNotification(userId, "Issue Submitted", `Your report "${title}" has been sent to the ${departmentName} department.`, "info", issuePost.id).catch(() => { });
         notifyDepartmentUsers(dept.id, "New Issue Assigned", `A new ${category.toLowerCase()} issue has been reported at ${location}.`, issuePost.id).catch(() => { });
+
+        // Real-time: broadcast new issue to the city
+        emitIssueCreated(cityId, issuePost as unknown as Record<string, unknown>);
 
         res.status(201).json({
             message: existingTicketId
@@ -260,6 +264,7 @@ export async function toggleUpvote(req: Request, res: Response): Promise<void> {
         try {
             // Optimistic create — will throw P2002 if already upvoted
             await prisma.upvote.create({ data: { userId, issuePostId } });
+            emitIssueUpvoted(issuePostId, { issueId: issuePostId, userId, upvoted: true });
             res.json({ message: "Issue upvoted.", upvoted: true });
         } catch (createError: any) {
             if (createError?.code === "P2002") {
@@ -267,6 +272,7 @@ export async function toggleUpvote(req: Request, res: Response): Promise<void> {
                 await prisma.upvote.delete({
                     where: { userId_issuePostId: { userId, issuePostId } },
                 });
+                emitIssueUpvoted(issuePostId, { issueId: issuePostId, userId, upvoted: false });
                 res.json({ message: "Upvote removed.", upvoted: false });
             } else {
                 throw createError;
@@ -304,6 +310,9 @@ export async function addComment(req: Request, res: Response): Promise<void> {
             data: { content, image: imagePath, isDepartmentUpdate, userId, issuePostId: id },
             include: { user: { select: { id: true, name: true, role: true, avatar: true } } },
         });
+
+        // Real-time: broadcast comment to everyone viewing this issue
+        emitIssueCommented(id, comment as unknown as Record<string, unknown>);
 
         res.status(201).json({ message: "Comment added.", comment });
     } catch (error: any) {

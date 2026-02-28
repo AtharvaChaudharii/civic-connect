@@ -1,5 +1,6 @@
 import { NavLink, Outlet, useNavigate } from "react-router-dom";
 import { useAuth } from "@/contexts/AuthContext";
+import { useSocket, SOCKET_EVENTS } from "@/contexts/SocketContext";
 import {
   LayoutDashboard,
   ClipboardList,
@@ -16,6 +17,7 @@ import { cn } from "@/lib/utils";
 
 const DepartmentLayout = () => {
   const { user, logout } = useAuth();
+  const { socket } = useSocket();
   const navigate = useNavigate();
   const [mobileOpen, setMobileOpen] = useState(false);
   const [unreadCount, setUnreadCount] = useState(0);
@@ -25,6 +27,14 @@ const DepartmentLayout = () => {
       .then((res) => setUnreadCount(res.unreadCount))
       .catch(() => { });
   }, []);
+
+  // Real-time: increment badge when a new notification arrives
+  useEffect(() => {
+    if (!socket) return;
+    const handleNew = () => setUnreadCount((c) => c + 1);
+    socket.on(SOCKET_EVENTS.NOTIFICATION_NEW, handleNew);
+    return () => { socket.off(SOCKET_EVENTS.NOTIFICATION_NEW, handleNew); };
+  }, [socket]);
 
   const navItems = [
     { to: "/department", icon: LayoutDashboard, label: "Dashboard", end: true },

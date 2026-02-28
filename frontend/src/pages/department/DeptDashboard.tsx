@@ -1,5 +1,6 @@
 import { useState, useEffect, useCallback } from "react";
 import { useAuth } from "@/contexts/AuthContext";
+import { useSocket, SOCKET_EVENTS } from "@/contexts/SocketContext";
 import { tickets as ticketsApi, CATEGORY_DISPLAY, type ApiTicket, type ApiTicketStats, type ApiPagination } from "@/lib/api";
 import StatusBadge from "@/components/StatusBadge";
 import { Button } from "@/components/ui/button";
@@ -12,6 +13,7 @@ const PAGE_SIZE = 15;
 
 const DeptDashboard = () => {
   const { user } = useAuth();
+  const { socket } = useSocket();
   const [allTickets, setAllTickets] = useState<ApiTicket[]>([]);
   const [pagination, setPagination] = useState<ApiPagination | null>(null);
   const [currentPage, setCurrentPage] = useState(1);
@@ -34,6 +36,20 @@ const DeptDashboard = () => {
       .catch(console.error)
       .finally(() => setLoading(false));
   }, []);
+
+  // ── Real-time: update ticket status in the list when changed ──
+  useEffect(() => {
+    if (!socket) return;
+    const handleStatusChanged = (data: { ticketId: string; status: string }) => {
+      setAllTickets((prev) =>
+        prev.map((t) => (t.id === data.ticketId ? { ...t, status: data.status } : t))
+      );
+      // Re-fetch stats to keep counts accurate
+      ticketsApi.stats().then((s) => setStats(s.stats)).catch(() => {});
+    };
+    socket.on(SOCKET_EVENTS.TICKET_STATUS_CHANGED, handleStatusChanged);
+    return () => { socket.off(SOCKET_EVENTS.TICKET_STATUS_CHANGED, handleStatusChanged); };
+  }, [socket]);
 
   // Fetch a specific page with optional status filter (server-side)
   const fetchPage = useCallback(async (page: number, status: string) => {

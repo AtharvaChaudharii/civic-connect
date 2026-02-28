@@ -2,6 +2,7 @@ import type { Request, Response } from "express";
 import prisma from "../config/db.js";
 import { ticketStatusSchema } from "../utils/validators.js";
 import { notifyIssueReporters } from "../services/notificationService.js";
+import { emitTicketStatusChanged } from "../services/socketEvents.js";
 
 /**
  * GET /api/tickets
@@ -197,6 +198,18 @@ export async function updateTicketStatus(req: Request, res: Response): Promise<v
                 updatedAt: new Date(),
             },
         });
+
+        // Real-time: broadcast status change to dept room + all linked issue rooms
+        const linkedPosts = await prisma.issuePost.findMany({
+            where: { consolidatedTicketId: id },
+            select: { id: true },
+        });
+        const issueIds = linkedPosts.map((p: { id: string }) => p.id);
+        emitTicketStatusChanged(
+            ticket.departmentId,
+            issueIds,
+            { ticketId: id, status, issueIds, proofImage: proofImage || ticket.proofImage, resolutionComment: resolutionComment || ticket.resolutionComment }
+        );
 
         // Notify all reporters
         const statusMessages: Record<string, string> = {

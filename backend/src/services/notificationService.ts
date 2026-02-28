@@ -1,4 +1,5 @@
 import prisma from "../config/db.js";
+import { emitNotification, emitNotifications } from "./socketEvents.js";
 
 type NotificationType = "info" | "success" | "warning" | "error";
 
@@ -12,9 +13,12 @@ export async function createNotification(
     type: NotificationType = "info",
     issueId?: string
 ) {
-    return prisma.notification.create({
+    const notification = await prisma.notification.create({
         data: { userId, title, message, type, issueId },
     });
+    // Real-time push
+    emitNotification(userId, notification as unknown as Record<string, unknown>);
+    return notification;
 }
 
 /**
@@ -36,7 +40,7 @@ export async function notifyIssueReporters(
     if (posts.length === 0) return;
 
     // Bulk insert — single round-trip to DB
-    return prisma.notification.createMany({
+    const result = await prisma.notification.createMany({
         data: posts.map((post: { id: string; reportedById: string }) => ({
             userId: post.reportedById,
             title,
@@ -46,6 +50,14 @@ export async function notifyIssueReporters(
         })),
         skipDuplicates: true,
     });
+
+    // Real-time push to all reporters
+    emitNotifications(
+        posts.map((p: { reportedById: string }) => p.reportedById),
+        { title, message, type }
+    );
+
+    return result;
 }
 
 /**
@@ -65,7 +77,7 @@ export async function notifyDepartmentUsers(
 
     if (deptUsers.length === 0) return;
 
-    return prisma.notification.createMany({
+    const result = await prisma.notification.createMany({
         data: deptUsers.map((user: { id: string }) => ({
             userId: user.id,
             title,
@@ -75,6 +87,14 @@ export async function notifyDepartmentUsers(
         })),
         skipDuplicates: true,
     });
+
+    // Real-time push to all dept users
+    emitNotifications(
+        deptUsers.map((u: { id: string }) => u.id),
+        { title, message, type: "info", issueId }
+    );
+
+    return result;
 }
 
 /**
@@ -95,7 +115,7 @@ export async function notifyMunicipalUsers(
 
     if (municipalUsers.length === 0) return;
 
-    return prisma.notification.createMany({
+    const result = await prisma.notification.createMany({
         data: municipalUsers.map((user: { id: string }) => ({
             userId: user.id,
             title,
@@ -105,4 +125,12 @@ export async function notifyMunicipalUsers(
         })),
         skipDuplicates: true,
     });
+
+    // Real-time push to all municipal users
+    emitNotifications(
+        municipalUsers.map((u: { id: string }) => u.id),
+        { title, message, type, issueId }
+    );
+
+    return result;
 }

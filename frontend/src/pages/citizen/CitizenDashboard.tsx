@@ -1,5 +1,6 @@
 import { Link } from "react-router-dom";
 import { useAuth } from "@/contexts/AuthContext";
+import { useSocket, SOCKET_EVENTS } from "@/contexts/SocketContext";
 import { issues as issuesApi, type ApiIssue, type ApiPagination, CATEGORY_DISPLAY } from "@/lib/api";
 import { Button } from "@/components/ui/button";
 import StatusBadge from "@/components/StatusBadge";
@@ -27,6 +28,7 @@ const PAGE_SIZE = 10;
 
 const CitizenDashboard = () => {
   const { user } = useAuth();
+  const { socket } = useSocket();
   const [allIssues, setAllIssues] = useState<ApiIssue[]>([]);
   const [pagination, setPagination] = useState<ApiPagination | null>(null);
   const [myIssues, setMyIssues] = useState<ApiIssue[]>([]);
@@ -58,6 +60,21 @@ const CitizenDashboard = () => {
       .catch(console.error)
       .finally(() => setLoading(false));
   }, [user]);
+
+  // ── Real-time: prepend new issues from the same city ──
+  useEffect(() => {
+    if (!socket) return;
+    const handleNewIssue = (issue: ApiIssue) => {
+      // Only show on page 1 with no category filter
+      if (currentPage !== 1 || category !== "All Categories") return;
+      setAllIssues((prev) => {
+        if (prev.some((i) => i.id === issue.id)) return prev;
+        return [issue, ...prev].slice(0, PAGE_SIZE);
+      });
+    };
+    socket.on(SOCKET_EVENTS.ISSUE_CREATED, handleNewIssue);
+    return () => { socket.off(SOCKET_EVENTS.ISSUE_CREATED, handleNewIssue); };
+  }, [socket, currentPage, category]);
 
   // Fetch a specific page (with optional category filter)
   const fetchPage = useCallback(

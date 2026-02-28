@@ -1,6 +1,7 @@
 import { useParams, useNavigate } from "react-router-dom";
 import { issues as issuesApi, CATEGORY_DISPLAY, type ApiIssueDetail, type ApiComment } from "@/lib/api";
 import { useAuth } from "@/contexts/AuthContext";
+import { useSocket, SOCKET_EVENTS } from "@/contexts/SocketContext";
 import StatusBadge from "@/components/StatusBadge";
 import IssueMap from "@/components/IssueMap";
 import { Button } from "@/components/ui/button";
@@ -17,6 +18,7 @@ const IssueDetail = () => {
   const { id } = useParams();
   const navigate = useNavigate();
   const { user } = useAuth();
+  const { socket, joinIssueRoom, leaveIssueRoom } = useSocket();
   const [issue, setIssue] = useState<ApiIssueDetail | null>(null);
   const [loading, setLoading] = useState(true);
   const [newComment, setNewComment] = useState("");
@@ -38,6 +40,48 @@ const IssueDetail = () => {
       .catch(() => setIssue(null))
       .finally(() => setLoading(false));
   }, [id, user?.id]);
+
+  // ── Real-time: join/leave issue room & listen for updates ──
+  useEffect(() => {
+    if (!id || !socket) return;
+    joinIssueRoom(id);
+
+    // Listen for new comments from other users
+    const handleComment = (data: { issueId: string; comment: ApiComment }) => {
+      if (data.issueId !== id) return;
+      setComments((prev) => {
+        // Skip if we already have this comment (our own optimistic insert)
+        if (prev.some((c) => c.id === data.comment.id)) return prev;
+        return [...prev, data.comment];
+      });
+    };
+
+    // Listen for upvote changes from other users
+    const handleUpvote = (data: { issueId: string; userId: string; upvoted: boolean }) => {
+      if (data.issueId !== id) return;
+      // Don't override our own optimistic update
+      if (data.userId === user?.id) return;
+      setUpvoteCount((prev) => data.upvoted ? prev + 1 : Math.max(0, prev - 1));
+    };
+
+    // Listen for status changes (ticket resolved, ongoing, etc.)
+    const handleStatusChange = (data: { issueIds: string[]; status: string }) => {
+      if (!data.issueIds?.includes(id)) return;
+      setIssue((prev) => prev ? { ...prev, status: data.status } : prev);
+      toast({ title: `Issue status updated to ${data.status}` });
+    };
+
+    socket.on(SOCKET_EVENTS.ISSUE_COMMENTED, handleComment);
+    socket.on(SOCKET_EVENTS.ISSUE_UPVOTED, handleUpvote);
+    socket.on(SOCKET_EVENTS.TICKET_STATUS_CHANGED, handleStatusChange);
+
+    return () => {
+      leaveIssueRoom(id);
+      socket.off(SOCKET_EVENTS.ISSUE_COMMENTED, handleComment);
+      socket.off(SOCKET_EVENTS.ISSUE_UPVOTED, handleUpvote);
+      socket.off(SOCKET_EVENTS.TICKET_STATUS_CHANGED, handleStatusChange);
+    };
+  }, [id, socket, user?.id, joinIssueRoom, leaveIssueRoom]);
 
   if (loading) {
     return (

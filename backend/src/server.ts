@@ -2,8 +2,10 @@ import express from "express";
 import cors from "cors";
 import compression from "compression";
 import path from "path";
+import { createServer } from "http";
 import { fileURLToPath } from "url";
 import { env } from "./config/env.js";
+import { initSocket } from "./config/socket.js";
 import { errorHandler } from "./middleware/errorHandler.js";
 import { startEscalationJob } from "./jobs/escalationJob.js";
 
@@ -16,8 +18,12 @@ import notificationRoutes from "./routes/notificationRoutes.js";
 
 // ── App Setup ──
 const app = express();
+const httpServer = createServer(app);
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
+
+// ── Socket.IO ──
+initSocket(httpServer);
 
 // ── Middleware ──
 // Compression must come before other middleware
@@ -57,7 +63,7 @@ app.use("/api/notifications", notificationRoutes);
 app.use(errorHandler);
 
 // ── Start Server ──
-app.listen(env.PORT, () => {
+httpServer.listen(env.PORT, () => {
     console.log(`
 ╔══════════════════════════════════════════╗
 ║     🏛  CivicConnect API Server         ║
