@@ -46,11 +46,13 @@ const IssueDetail = () => {
     if (!id || !socket) return;
     joinIssueRoom(id);
 
-    // Listen for new comments from other users
+    // Listen for new comments from OTHER users only.
+    // Our own comments are handled optimistically in handlePostComment,
+    // so we skip socket events from ourselves to avoid duplicates.
     const handleComment = (data: { issueId: string; comment: ApiComment }) => {
       if (data.issueId !== id) return;
+      if (data.comment.user?.id === user?.id) return; // skip own comments
       setComments((prev) => {
-        // Skip if we already have this comment (our own optimistic insert)
         if (prev.some((c) => c.id === data.comment.id)) return prev;
         return [...prev, data.comment];
       });

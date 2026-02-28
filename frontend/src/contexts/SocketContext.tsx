@@ -9,6 +9,7 @@ import {
 } from "react";
 import { io, Socket } from "socket.io-client";
 import { useAuth } from "./AuthContext";
+import { notifications as notificationsApi } from "@/lib/api";
 
 // ── Event name constants (must match backend) ──
 export const SOCKET_EVENTS = {
@@ -24,6 +25,9 @@ interface SocketContextType {
     isConnected: boolean;
     joinIssueRoom: (issueId: string) => void;
     leaveIssueRoom: (issueId: string) => void;
+    unreadCount: number;
+    decrementUnread: (by?: number) => void;
+    clearUnread: () => void;
 }
 
 const SocketContext = createContext<SocketContextType>({
@@ -31,6 +35,9 @@ const SocketContext = createContext<SocketContextType>({
     isConnected: false,
     joinIssueRoom: () => { },
     leaveIssueRoom: () => { },
+    unreadCount: 0,
+    decrementUnread: () => { },
+    clearUnread: () => { },
 });
 
 /**
@@ -42,6 +49,18 @@ export function SocketProvider({ children }: { children: ReactNode }) {
     const { user, isAuthenticated } = useAuth();
     const socketRef = useRef<Socket | null>(null);
     const [isConnected, setIsConnected] = useState(false);
+    const [unreadCount, setUnreadCount] = useState(0);
+
+    // Fetch initial unread count when user logs in
+    useEffect(() => {
+        if (!isAuthenticated || !user) {
+            setUnreadCount(0);
+            return;
+        }
+        notificationsApi.list(true)
+            .then((res) => setUnreadCount(res.unreadCount))
+            .catch(() => { });
+    }, [isAuthenticated, user?.id]);
 
     useEffect(() => {
         if (!isAuthenticated || !user) {
@@ -96,6 +115,23 @@ export function SocketProvider({ children }: { children: ReactNode }) {
         socketRef.current?.emit("leave:issue", issueId);
     }, []);
 
+    // Real-time: increment badge when a new notification arrives via socket
+    useEffect(() => {
+        const socket = socketRef.current;
+        if (!socket) return;
+        const handleNew = () => setUnreadCount((c) => c + 1);
+        socket.on(SOCKET_EVENTS.NOTIFICATION_NEW, handleNew);
+        return () => { socket.off(SOCKET_EVENTS.NOTIFICATION_NEW, handleNew); };
+    }, [isConnected]); // re-attach when connection state changes
+
+    const decrementUnread = useCallback((by = 1) => {
+        setUnreadCount((c) => Math.max(0, c - by));
+    }, []);
+
+    const clearUnread = useCallback(() => {
+        setUnreadCount(0);
+    }, []);
+
     return (
         <SocketContext.Provider
             value={{
@@ -103,6 +139,9 @@ export function SocketProvider({ children }: { children: ReactNode }) {
                 isConnected,
                 joinIssueRoom,
                 leaveIssueRoom,
+                unreadCount,
+                decrementUnread,
+                clearUnread,
             }}
         >
             {children}

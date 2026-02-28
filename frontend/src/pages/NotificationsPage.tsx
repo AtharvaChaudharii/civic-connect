@@ -1,5 +1,6 @@
 import { useState, useEffect } from "react";
 import { useAuth } from "@/contexts/AuthContext";
+import { useSocket } from "@/contexts/SocketContext";
 import { notifications as notificationsApi, type ApiNotification } from "@/lib/api";
 import { Bell, CheckCheck, Info, CheckCircle, AlertTriangle, AlertCircle, Loader2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
@@ -22,6 +23,7 @@ const typeColors: Record<string, string> = {
 
 const NotificationsPage = () => {
   const { user } = useAuth();
+  const { decrementUnread, clearUnread } = useSocket();
   const [items, setItems] = useState<ApiNotification[]>([]);
   const [loading, setLoading] = useState(true);
 
@@ -37,6 +39,7 @@ const NotificationsPage = () => {
     try {
       await notificationsApi.markRead(id);
       setItems((prev) => prev.map((n) => (n.id === id ? { ...n, read: true } : n)));
+      decrementUnread(1);
     } catch {
       toast({ title: "Failed to mark as read", variant: "destructive" });
     }
@@ -45,7 +48,9 @@ const NotificationsPage = () => {
   const handleMarkAllRead = async () => {
     try {
       await notificationsApi.markAllRead();
+      const currentUnread = items.filter((n) => !n.read).length;
       setItems((prev) => prev.map((n) => ({ ...n, read: true })));
+      clearUnread();
       toast({ title: "All notifications marked as read" });
     } catch {
       toast({ title: "Failed", variant: "destructive" });
