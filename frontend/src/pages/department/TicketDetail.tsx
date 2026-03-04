@@ -1,6 +1,7 @@
 import { useState, useEffect } from "react";
 import { useParams, useNavigate } from "react-router-dom";
 import { useAuth } from "@/contexts/AuthContext";
+import { useSocket, SOCKET_EVENTS } from "@/contexts/SocketContext";
 import { tickets as ticketsApi, CATEGORY_DISPLAY, type ApiTicketDetail, type ApiComment } from "@/lib/api";
 import StatusBadge from "@/components/StatusBadge";
 import IssueMap from "@/components/IssueMap";
@@ -18,6 +19,7 @@ const TicketDetail = () => {
   const { id } = useParams();
   const navigate = useNavigate();
   const { user } = useAuth();
+  const { socket, joinIssueRoom, leaveIssueRoom } = useSocket();
   const [ticket, setTicket] = useState<ApiTicketDetail | null>(null);
   const [loading, setLoading] = useState(true);
   const [selectedStatus, setSelectedStatus] = useState("");
@@ -27,15 +29,48 @@ const TicketDetail = () => {
   const [updating, setUpdating] = useState(false);
   const [newComment, setNewComment] = useState("");
   const [submittingComment, setSubmittingComment] = useState(false);
+  const [comments, setComments] = useState<ApiComment[]>([]);
 
   useEffect(() => {
     if (!id) return;
     setLoading(true);
     ticketsApi.getById(id)
-      .then((res) => { setTicket(res.ticket); setSelectedStatus(res.ticket.status); })
+      .then((res) => {
+        setTicket(res.ticket);
+        setSelectedStatus(res.ticket.status);
+        // Flatten all comments from linked issue posts into one sorted list
+        const all = res.ticket.issuePosts
+          .flatMap((ip: any) => ip.comments || [])
+          .sort((a: any, b: any) => new Date(a.createdAt).getTime() - new Date(b.createdAt).getTime());
+        setComments(all);
+      })
       .catch(() => setTicket(null))
       .finally(() => setLoading(false));
   }, [id]);
+
+  // ── Real-time: join all linked issue rooms & listen for comments ──
+  useEffect(() => {
+    if (!ticket || !socket) return;
+    const issueIds = ticket.issuePosts.map((ip: any) => ip.id as string);
+    // Join every issue room linked to this ticket
+    issueIds.forEach((iid) => joinIssueRoom(iid));
+
+    const handleComment = (data: { issueId: string; comment: ApiComment }) => {
+      // Skip our own comments (we add them optimistically)
+      if (data.comment.user?.id === user?.id) return;
+      setComments((prev) => {
+        if (prev.some((c) => c.id === data.comment.id)) return prev;
+        return [...prev, data.comment];
+      });
+    };
+
+    socket.on(SOCKET_EVENTS.ISSUE_COMMENTED, handleComment);
+
+    return () => {
+      issueIds.forEach((iid) => leaveIssueRoom(iid));
+      socket.off(SOCKET_EVENTS.ISSUE_COMMENTED, handleComment);
+    };
+  }, [ticket, socket, user?.id, joinIssueRoom, leaveIssueRoom]);
 
   const handleProofUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
@@ -67,25 +102,42 @@ const TicketDetail = () => {
   };
 
   const handlePostComment = async () => {
-    if (!newComment.trim() || !ticket) return;
+    if (!newComment.trim() || !ticket || !user) return;
     const firstIssueId = ticket.issuePosts[0]?.id;
     if (!firstIssueId) return;
+
+    // Optimistic insert
+    const tempComment: ApiComment = {
+      id: `temp-${Date.now()}`,
+      content: newComment.trim(),
+      image: null,
+      isDepartmentUpdate: true,
+      createdAt: new Date().toISOString(),
+      user: { id: user.id, name: user.name, role: user.role, avatar: user.avatar || null },
+    };
+    setComments((prev) => [...prev, tempComment]);
+    const commentText = newComment.trim();
+    setNewComment("");
     setSubmittingComment(true);
+
     try {
-      const { comment } = await (await fetch(`/api/issues/${firstIssueId}/comments`, {
+      const res = await (await fetch(`/api/issues/${firstIssueId}/comments`, {
         method: "POST",
         headers: {
           "Content-Type": "application/json",
           Authorization: `Bearer ${localStorage.getItem("civictrack_token")}`,
         },
-        body: JSON.stringify({ content: newComment.trim() }),
+        body: JSON.stringify({ content: commentText }),
       })).json();
-      // Refresh ticket to show new comment
-      const res = await ticketsApi.getById(id!);
-      setTicket(res.ticket);
-      setNewComment("");
+      // Replace temp with real comment
+      if (res.comment) {
+        setComments((prev) => prev.map((c) => c.id === tempComment.id ? res.comment : c));
+      }
       toast({ title: "Department update posted" });
     } catch {
+      // Revert on error
+      setComments((prev) => prev.filter((c) => c.id !== tempComment.id));
+      setNewComment(commentText);
       toast({ title: "Failed to post comment", variant: "destructive" });
     } finally {
       setSubmittingComment(false);
@@ -106,7 +158,6 @@ const TicketDetail = () => {
   }
 
   const primary = ticket.issuePosts[0];
-  const allComments = ticket.issuePosts.flatMap((ip) => ip.comments || []).sort((a, b) => new Date(a.createdAt).getTime() - new Date(b.createdAt).getTime());
 
   return (
     <div className="civic-container civic-section">
@@ -154,9 +205,9 @@ const TicketDetail = () => {
 
           {/* Comments / Discussion */}
           <div className="rounded-xl border bg-card p-5">
-            <h3 className="mb-4 flex items-center gap-2 text-body font-semibold text-foreground"><MessageSquare className="h-5 w-5" /> Discussion ({allComments.length})</h3>
+            <h3 className="mb-4 flex items-center gap-2 text-body font-semibold text-foreground"><MessageSquare className="h-5 w-5" /> Discussion ({comments.length})</h3>
             <div className="space-y-3">
-              {allComments.map((c) => (
+              {comments.map((c) => (
                 <div key={c.id} className={cn("rounded-lg border p-3", c.isDepartmentUpdate && "border-l-4 border-l-primary bg-accent/20")}>
                   <div className="mb-1 flex items-center gap-2">
                     <div className="flex h-7 w-7 items-center justify-center rounded-full bg-muted text-label font-semibold text-muted-foreground">{c.user.name.charAt(0)}</div>

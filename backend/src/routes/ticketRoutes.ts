@@ -8,7 +8,7 @@ import {
 } from "../controllers/ticketController.js";
 import { authenticate, authorize } from "../middleware/auth.js";
 import { cityIsolation } from "../middleware/cityIsolation.js";
-import { upload } from "../middleware/upload.js";
+import { upload, uploadToCloudinary } from "../middleware/upload.js";
 
 const router = Router();
 
@@ -25,9 +25,9 @@ router.get("/", getTickets);
 router.get("/:id", getTicketById);
 
 // Update ticket status (with optional proof image)
-router.patch("/:id/status", upload.single("proofImage"), updateTicketStatus);
+router.patch("/:id/status", upload.single("proofImage"), uploadToCloudinary, updateTicketStatus);
 
 // Upload proof image separately
-router.post("/:id/proof", upload.single("proofImage"), uploadProof);
+router.post("/:id/proof", upload.single("proofImage"), uploadToCloudinary, uploadProof);
 
 export default router;

@@ -1,23 +1,18 @@
 import multer from "multer";
-import path from "path";
+import { v2 as cloudinary } from "cloudinary";
+import type { Request, Response, NextFunction } from "express";
 import { env } from "../config/env.js";
-import fs from "fs";
 
-// Ensure upload directory exists
-if (!fs.existsSync(env.UPLOAD_DIR)) {
-    fs.mkdirSync(env.UPLOAD_DIR, { recursive: true });
-}
-
-const storage = multer.diskStorage({
-    destination: (_req, _file, cb) => {
-        cb(null, env.UPLOAD_DIR);
-    },
-    filename: (_req, file, cb) => {
-        const uniqueSuffix = `${Date.now()}-${Math.round(Math.random() * 1e9)}`;
-        const ext = path.extname(file.originalname);
-        cb(null, `${uniqueSuffix}${ext}`);
-    },
+// ── Configure Cloudinary from env vars ──
+cloudinary.config({
+    cloud_name: env.CLOUDINARY_CLOUD_NAME,
+    api_key: env.CLOUDINARY_API_KEY,
+    api_secret: env.CLOUDINARY_API_SECRET,
+    secure: true,
 });
+
+// Use memory storage — we stream the buffer to Cloudinary ourselves
+const storage = multer.memoryStorage();
 
 const fileFilter = (_req: Express.Request, file: Express.Multer.File, cb: multer.FileFilterCallback) => {
     const allowedMimes = ["image/jpeg", "image/png", "image/webp", "image/gif"];
@@ -28,6 +23,7 @@ const fileFilter = (_req: Express.Request, file: Express.Multer.File, cb: multer
     }
 };
 
+// Base multer instance (validates type + size, buffers file in memory)
 export const upload = multer({
     storage,
     fileFilter,
@@ -35,3 +31,40 @@ export const upload = multer({
         fileSize: env.MAX_FILE_SIZE,
     },
 });
+
+/**
+ * Express middleware that uploads req.file buffer to Cloudinary.
+ * Must be used AFTER upload.single() / upload.fields().
+ * On success, sets req.file.path to the Cloudinary secure URL.
+ */
+export async function uploadToCloudinary(
+    req: Request,
+    _res: Response,
+    next: NextFunction
+): Promise<void> {
+    if (!req.file) return next();
+
+    try {
+        const result = await new Promise<{ secure_url: string }>((resolve, reject) => {
+            const stream = cloudinary.uploader.upload_stream(
+                {
+                    folder: "civicconnect",
+                    resource_type: "image",
+                    // Auto-compress & convert to webp for smaller sizes
+                    transformation: [{ quality: "auto", fetch_format: "auto" }],
+                },
+                (error, result) => {
+                    if (error || !result) return reject(error ?? new Error("Cloudinary upload failed"));
+                    resolve(result);
+                }
+            );
+            stream.end(req.file!.buffer);
+        });
+
+        // Store the full Cloudinary URL in path (replacing the old /uploads/... pattern)
+        req.file.path = result.secure_url;
+        next();
+    } catch (err) {
+        next(err);
+    }
+}

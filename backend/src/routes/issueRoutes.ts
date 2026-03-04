@@ -9,7 +9,7 @@ import {
     getUserIssues,
 } from "../controllers/issueController.js";
 import { authenticate, authorize } from "../middleware/auth.js";
-import { upload } from "../middleware/upload.js";
+import { upload, uploadToCloudinary } from "../middleware/upload.js";
 
 const router = Router();
 
@@ -17,7 +17,7 @@ const router = Router();
 router.use(authenticate);
 
 // Citizen reports an issue
-router.post("/", authorize("citizen"), upload.single("image"), reportIssue);
+router.post("/", authorize("citizen"), upload.single("image"), uploadToCloudinary, reportIssue);
 
 // List issues (all authenticated users can view)
 router.get("/", getIssues);
@@ -35,6 +35,6 @@ router.get("/:id", getIssueById);
 router.post("/:id/upvote", authorize("citizen"), toggleUpvote);
 
 // Add comment (with optional image)
-router.post("/:id/comments", upload.single("image"), addComment);
+router.post("/:id/comments", upload.single("image"), uploadToCloudinary, addComment);
 
 export default router;
