@@ -8,8 +8,11 @@ export const env = {
     JWT_SECRET: process.env.JWT_SECRET || "fallback_secret",
     JWT_EXPIRES_IN: process.env.JWT_EXPIRES_IN || "7d",
     FRONTEND_URL: process.env.FRONTEND_URL || "http://localhost:5173",
-    UPLOAD_DIR: process.env.UPLOAD_DIR || "./uploads",
     MAX_FILE_SIZE: parseInt(process.env.MAX_FILE_SIZE || "5242880", 10),
+    // Cloudinary
+    CLOUDINARY_CLOUD_NAME: process.env.CLOUDINARY_CLOUD_NAME || "",
+    CLOUDINARY_API_KEY: process.env.CLOUDINARY_API_KEY || "",
+    CLOUDINARY_API_SECRET: process.env.CLOUDINARY_API_SECRET || "",
 };
 
 // Category → Department mapping

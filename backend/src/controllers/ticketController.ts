@@ -173,7 +173,7 @@ export async function updateTicketStatus(req: Request, res: Response): Promise<v
         }
 
         // Resolution proof requirement
-        const proofImage = req.file ? `/uploads/${req.file.filename}` : undefined;
+        const proofImage = req.file ? req.file.path : undefined;
         if (status === "Resolved" && !proofImage && !ticket.proofImage) {
             res.status(400).json({ error: "A proof image is required to mark the issue as resolved." });
             return;
@@ -261,7 +261,7 @@ export async function uploadProof(req: Request, res: Response): Promise<void> {
             return;
         }
 
-        const proofImage = `/uploads/${req.file.filename}`;
+        const proofImage = req.file ? req.file.path : undefined;
 
         const updatedTicket = await prisma.consolidatedTicket.update({
             where: { id },

@@ -30,7 +30,7 @@ export async function reportIssue(req: Request, res: Response): Promise<void> {
             return;
         }
 
-        const imagePath = req.file ? `/uploads/${req.file.filename}` : "";
+        const imagePath = req.file ? req.file.path : "";
         if (!imagePath) {
             res.status(400).json({ error: "An image is required to report an issue." });
             return;
@@ -304,7 +304,7 @@ export async function addComment(req: Request, res: Response): Promise<void> {
         const { content } = validation.data;
         const userId = req.user!.id;
         const isDepartmentUpdate = req.user!.role === "department";
-        const imagePath = req.file ? `/uploads/${req.file.filename}` : undefined;
+        const imagePath = req.file ? req.file.path : undefined;
 
         const comment = await prisma.comment.create({
             data: { content, image: imagePath, isDepartmentUpdate, userId, issuePostId: id },
