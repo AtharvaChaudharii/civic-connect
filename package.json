@@ -2,9 +2,9 @@
   "name": "civictrack",
   "private": true,
   "scripts": {
-    "dev": "cd frontend && npm run dev",
-    "build": "cd frontend && npm run build",
-    "preview": "cd frontend && npm run preview",
-    "test": "cd frontend && npm run test"
+    "dev": "cd frontend && bun install && bun run dev",
+    "build": "cd frontend && bun install && bun run build",
+    "preview": "cd frontend && bun run preview",
+    "test": "cd frontend && bun run test"
   }
 }
