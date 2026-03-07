@@ -1,0 +1,10 @@
+{
+  "name": "civictrack",
+  "private": true,
+  "scripts": {
+    "dev": "cd frontend && bun install && bun run dev",
+    "build": "cd frontend && bun install && bun run build",
+    "preview": "cd frontend && bun run preview",
+    "test": "cd frontend && bun run test"
+  }
+}
