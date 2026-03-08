@@ -149,6 +149,9 @@ const CitizenDashboard = () => {
         setAllIssues(res.issues);
         setPagination(res.pagination);
         setCurrentPage(page);
+        const counts: Record<string, number> = {};
+        res.issues.forEach((i: ApiIssue) => { counts[i.id] = i._count?.upvotes ?? 0; });
+        setUpvoteCounts((prev) => ({ ...prev, ...counts }));
       } catch (err) {
         console.error(err);
       } finally {
