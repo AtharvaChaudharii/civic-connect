@@ -109,6 +109,10 @@ const CitizenDashboard = () => {
         setPagination(cityRes.pagination);
         setMyIssues(myRes.issues);
         setCurrentPage(1);
+        // Initialize upvote counts
+        const counts: Record<string, number> = {};
+        cityRes.issues.forEach((i: ApiIssue) => { counts[i.id] = i._count?.upvotes ?? 0; });
+        setUpvoteCounts((prev) => ({ ...prev, ...counts }));
       })
       .catch(console.error)
       .finally(() => setLoading(false));
