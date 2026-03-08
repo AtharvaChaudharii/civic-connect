@@ -1,4 +1,4 @@
-import { Link } from "react-router-dom";
+import { Link, useNavigate } from "react-router-dom";
 import { useAuth } from "@/contexts/AuthContext";
 import { useSocket, SOCKET_EVENTS } from "@/contexts/SocketContext";
 import { issues as issuesApi, type ApiIssue, type ApiPagination, CATEGORY_DISPLAY } from "@/lib/api";
@@ -29,12 +29,15 @@ import {
   Flame,
 } from "lucide-react";
 import { useState, useEffect, useCallback } from "react";
+import { cn } from "@/lib/utils";
+import { toast } from "@/hooks/use-toast";
 
 const PAGE_SIZE = 10;
 
 const CitizenDashboard = () => {
   const { user } = useAuth();
   const { socket } = useSocket();
+  const navigate = useNavigate();
   const [allIssues, setAllIssues] = useState<ApiIssue[]>([]);
   const [pagination, setPagination] = useState<ApiPagination | null>(null);
   const [myIssues, setMyIssues] = useState<ApiIssue[]>([]);
@@ -42,6 +45,51 @@ const CitizenDashboard = () => {
   const [pageLoading, setPageLoading] = useState(false);
   const [category, setCategory] = useState("All Categories");
   const [currentPage, setCurrentPage] = useState(1);
+  const [upvotedIds, setUpvotedIds] = useState<Set<string>>(new Set());
+  const [upvoteCounts, setUpvoteCounts] = useState<Record<string, number>>({});
+
+  const handleUpvote = async (e: React.MouseEvent, issueId: string) => {
+    e.preventDefault();
+    e.stopPropagation();
+    const wasUpvoted = upvotedIds.has(issueId);
+    const prevCount = upvoteCounts[issueId] ?? 0;
+
+    // Optimistic update
+    setUpvotedIds((prev) => {
+      const next = new Set(prev);
+      wasUpvoted ? next.delete(issueId) : next.add(issueId);
+      return next;
+    });
+    setUpvoteCounts((prev) => ({ ...prev, [issueId]: wasUpvoted ? prevCount - 1 : prevCount + 1 }));
+
+    try {
+      const res = await issuesApi.upvote(issueId);
+      if (res.upvoted !== !wasUpvoted) {
+        setUpvotedIds((prev) => {
+          const next = new Set(prev);
+          res.upvoted ? next.add(issueId) : next.delete(issueId);
+          return next;
+        });
+        setUpvoteCounts((prev) => ({ ...prev, [issueId]: res.upvoted ? prevCount + 1 : prevCount - 1 }));
+      }
+      toast({ title: res.upvoted ? "Issue upvoted!" : "Upvote removed" });
+    } catch {
+      // Revert
+      setUpvotedIds((prev) => {
+        const next = new Set(prev);
+        wasUpvoted ? next.add(issueId) : next.delete(issueId);
+        return next;
+      });
+      setUpvoteCounts((prev) => ({ ...prev, [issueId]: prevCount }));
+      toast({ title: "Failed to upvote", variant: "destructive" });
+    }
+  };
+
+  const handleCommentClick = (e: React.MouseEvent, issueId: string) => {
+    e.preventDefault();
+    e.stopPropagation();
+    navigate(`/dashboard/issue/${issueId}#comments`);
+  };
 
   useEffect(() => {
     if (!user) return;
@@ -61,6 +109,10 @@ const CitizenDashboard = () => {
         setPagination(cityRes.pagination);
         setMyIssues(myRes.issues);
         setCurrentPage(1);
+        // Initialize upvote counts
+        const counts: Record<string, number> = {};
+        cityRes.issues.forEach((i: ApiIssue) => { counts[i.id] = i._count?.upvotes ?? 0; });
+        setUpvoteCounts((prev) => ({ ...prev, ...counts }));
       })
       .catch(console.error)
       .finally(() => setLoading(false));
@@ -97,6 +149,9 @@ const CitizenDashboard = () => {
         setAllIssues(res.issues);
         setPagination(res.pagination);
         setCurrentPage(page);
+        const counts: Record<string, number> = {};
+        res.issues.forEach((i: ApiIssue) => { counts[i.id] = i._count?.upvotes ?? 0; });
+        setUpvoteCounts((prev) => ({ ...prev, ...counts }));
       } catch (err) {
         console.error(err);
       } finally {
@@ -274,13 +329,25 @@ const CitizenDashboard = () => {
                         </p>
                       </div>
                       <div className="mt-3 flex items-center justify-between border-t pt-3">
-                        <div className="flex items-center gap-4 text-caption text-muted-foreground">
-                          <span className="flex items-center gap-1">
-                            <ThumbsUp className="h-3.5 w-3.5" /> {issue._count?.upvotes ?? 0}
-                          </span>
-                          <span className="flex items-center gap-1">
+                        <div className="flex items-center gap-4 text-caption">
+                          <button
+                            onClick={(e) => handleUpvote(e, issue.id)}
+                            className={cn(
+                              "flex items-center gap-1.5 rounded-full px-3 py-1 transition-colors",
+                              upvotedIds.has(issue.id)
+                                ? "bg-primary/10 text-primary font-medium"
+                                : "text-muted-foreground hover:bg-muted hover:text-foreground"
+                            )}
+                          >
+                            <ThumbsUp className={cn("h-3.5 w-3.5", upvotedIds.has(issue.id) && "fill-current")} />
+                            {upvoteCounts[issue.id] ?? issue._count?.upvotes ?? 0}
+                          </button>
+                          <button
+                            onClick={(e) => handleCommentClick(e, issue.id)}
+                            className="flex items-center gap-1.5 rounded-full px-3 py-1 text-muted-foreground transition-colors hover:bg-muted hover:text-foreground"
+                          >
                             <MessageSquare className="h-3.5 w-3.5" /> {issue._count?.comments ?? 0}
-                          </span>
+                          </button>
                         </div>
                         <span className="flex items-center gap-1 text-caption font-medium text-primary opacity-0 transition-opacity group-hover:opacity-100">
                           View Details <ArrowRight className="h-3.5 w-3.5" />

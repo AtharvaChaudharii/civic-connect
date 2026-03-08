@@ -1,4 +1,4 @@
-import { useParams, useNavigate } from "react-router-dom";
+import { useParams, useNavigate, useLocation } from "react-router-dom";
 import { issues as issuesApi, CATEGORY_DISPLAY, type ApiIssueDetail, type ApiComment } from "@/lib/api";
 import { useAuth } from "@/contexts/AuthContext";
 import { useSocket, SOCKET_EVENTS } from "@/contexts/SocketContext";
@@ -10,15 +10,17 @@ import {
   MapPin, ThumbsUp, ArrowLeft, Clock, Users, MessageSquare,
   AlertTriangle, CheckCircle, Send, Loader2,
 } from "lucide-react";
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef } from "react";
 import { cn } from "@/lib/utils";
 import { toast } from "@/hooks/use-toast";
 
 const IssueDetail = () => {
   const { id } = useParams();
   const navigate = useNavigate();
+  const location = useLocation();
   const { user } = useAuth();
   const { socket, joinIssueRoom, leaveIssueRoom } = useSocket();
+  const commentsRef = useRef<HTMLDivElement>(null);
   const [issue, setIssue] = useState<ApiIssueDetail | null>(null);
   const [loading, setLoading] = useState(true);
   const [newComment, setNewComment] = useState("");
@@ -40,6 +42,13 @@ const IssueDetail = () => {
       .catch(() => setIssue(null))
       .finally(() => setLoading(false));
   }, [id, user?.id]);
+
+  // Scroll to comments if #comments hash is present
+  useEffect(() => {
+    if (!loading && location.hash === "#comments" && commentsRef.current) {
+      commentsRef.current.scrollIntoView({ behavior: "smooth", block: "start" });
+    }
+  }, [loading, location.hash]);
 
   // ── Real-time: join/leave issue room & listen for updates ──
   useEffect(() => {
@@ -269,7 +278,7 @@ const IssueDetail = () => {
       </div>
 
       {/* Comments */}
-      <div className="mt-10">
+      <div className="mt-10" ref={commentsRef} id="comments">
         <h2 className="mb-4 flex items-center gap-2 text-h3 text-foreground">
           <MessageSquare className="h-5 w-5" /> Comments ({comments.length})
         </h2>
