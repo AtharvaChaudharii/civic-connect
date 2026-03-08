@@ -1,4 +1,4 @@
-import { useParams, useNavigate } from "react-router-dom";
+import { useParams, useNavigate, useLocation } from "react-router-dom";
 import { issues as issuesApi, CATEGORY_DISPLAY, type ApiIssueDetail, type ApiComment } from "@/lib/api";
 import { useAuth } from "@/contexts/AuthContext";
 import { useSocket, SOCKET_EVENTS } from "@/contexts/SocketContext";
