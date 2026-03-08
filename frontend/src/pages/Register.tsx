@@ -40,22 +40,32 @@ const Register = () => {
   };
 
   return (
-    <div className="flex min-h-screen items-center justify-center bg-background px-4">
-      <div className="w-full max-w-md">
-        <div className="mb-8 text-center">
-          <Link to="/" className="inline-flex items-center gap-2">
-            <div className="flex h-10 w-10 items-center justify-center rounded-lg bg-primary">
+    <div className="flex min-h-screen flex-col bg-background">
+      {/* Top bar */}
+      <header className="border-b bg-card">
+        <div className="civic-container flex h-16 items-center justify-between">
+          <Link to="/" className="flex items-center gap-2">
+            <div className="flex h-8 w-8 items-center justify-center rounded-full bg-primary">
               <span className="text-sm font-bold text-primary-foreground">CT</span>
             </div>
-            <span className="text-xl font-semibold text-foreground">CivicTrack</span>
+            <span className="text-lg font-semibold text-foreground">CivicTrack</span>
           </Link>
-          <p className="mt-3 text-body text-muted-foreground">
-            Create your citizen account to start reporting
-          </p>
+          <div className="flex items-center gap-4">
+            <Link to="/" className="text-caption font-medium text-muted-foreground hover:text-foreground">Home</Link>
+            <Link to="/login" className="text-caption font-medium text-muted-foreground hover:text-foreground">Log In</Link>
+          </div>
         </div>
+      </header>
 
-        <div className="rounded-xl border bg-card p-8 shadow-sm">
-          <h1 className="mb-6 text-h3 text-foreground">Create account</h1>
+      {/* Register form */}
+      <div className="flex flex-1 items-center justify-center px-4 py-12">
+        <div className="w-full max-w-md rounded-2xl border bg-card p-8 shadow-sm">
+          <div className="mb-8 text-center">
+            <h1 className="text-h2 text-foreground">Create Account</h1>
+            <p className="mt-2 text-body text-muted-foreground">
+              Create your citizen account to start reporting
+            </p>
+          </div>
 
           {error && (
             <div className="mb-4 flex items-center gap-2 rounded-lg border border-destructive/20 bg-destructive/5 px-4 py-3 text-caption text-destructive">
@@ -127,6 +137,16 @@ const Register = () => {
             Department and Municipal accounts are managed by city administrators.
           </p>
         </div>
+      </div>
+
+      {/* Footer */}
+      <div className="border-t py-6 text-center">
+        <div className="flex items-center justify-center gap-6 text-caption text-muted-foreground">
+          <a href="#" className="hover:text-foreground">Privacy Policy</a>
+          <span>·</span>
+          <a href="#" className="hover:text-foreground">Terms of Service</a>
+        </div>
+        <p className="mt-4 text-label text-muted-foreground">© 2026 CivicTrack. All rights reserved.</p>
       </div>
     </div>
   );
