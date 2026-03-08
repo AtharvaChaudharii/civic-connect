@@ -278,7 +278,7 @@ const IssueDetail = () => {
       </div>
 
       {/* Comments */}
-      <div className="mt-10">
+      <div className="mt-10" ref={commentsRef} id="comments">
         <h2 className="mb-4 flex items-center gap-2 text-h3 text-foreground">
           <MessageSquare className="h-5 w-5" /> Comments ({comments.length})
         </h2>
