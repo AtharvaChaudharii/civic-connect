@@ -1,4 +1,4 @@
-import { Link } from "react-router-dom";
+import { Link, useNavigate } from "react-router-dom";
 import { useAuth } from "@/contexts/AuthContext";
 import { useSocket, SOCKET_EVENTS } from "@/contexts/SocketContext";
 import { issues as issuesApi, type ApiIssue, type ApiPagination, CATEGORY_DISPLAY } from "@/lib/api";
@@ -29,6 +29,8 @@ import {
   Flame,
 } from "lucide-react";
 import { useState, useEffect, useCallback } from "react";
+import { cn } from "@/lib/utils";
+import { toast } from "@/hooks/use-toast";
 
 const PAGE_SIZE = 10;
 
