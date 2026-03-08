@@ -10,7 +10,7 @@ import {
   MapPin, ThumbsUp, ArrowLeft, Clock, Users, MessageSquare,
   AlertTriangle, CheckCircle, Send, Loader2,
 } from "lucide-react";
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef } from "react";
 import { cn } from "@/lib/utils";
 import { toast } from "@/hooks/use-toast";
 
