@@ -17,8 +17,10 @@ import { toast } from "@/hooks/use-toast";
 const IssueDetail = () => {
   const { id } = useParams();
   const navigate = useNavigate();
+  const location = useLocation();
   const { user } = useAuth();
   const { socket, joinIssueRoom, leaveIssueRoom } = useSocket();
+  const commentsRef = useRef<HTMLDivElement>(null);
   const [issue, setIssue] = useState<ApiIssueDetail | null>(null);
   const [loading, setLoading] = useState(true);
   const [newComment, setNewComment] = useState("");
