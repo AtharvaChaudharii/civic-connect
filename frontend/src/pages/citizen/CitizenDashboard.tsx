@@ -37,6 +37,7 @@ const PAGE_SIZE = 10;
 const CitizenDashboard = () => {
   const { user } = useAuth();
   const { socket } = useSocket();
+  const navigate = useNavigate();
   const [allIssues, setAllIssues] = useState<ApiIssue[]>([]);
   const [pagination, setPagination] = useState<ApiPagination | null>(null);
   const [myIssues, setMyIssues] = useState<ApiIssue[]>([]);
@@ -44,6 +45,51 @@ const CitizenDashboard = () => {
   const [pageLoading, setPageLoading] = useState(false);
   const [category, setCategory] = useState("All Categories");
   const [currentPage, setCurrentPage] = useState(1);
+  const [upvotedIds, setUpvotedIds] = useState<Set<string>>(new Set());
+  const [upvoteCounts, setUpvoteCounts] = useState<Record<string, number>>({});
+
+  const handleUpvote = async (e: React.MouseEvent, issueId: string) => {
+    e.preventDefault();
+    e.stopPropagation();
+    const wasUpvoted = upvotedIds.has(issueId);
+    const prevCount = upvoteCounts[issueId] ?? 0;
+
+    // Optimistic update
+    setUpvotedIds((prev) => {
+      const next = new Set(prev);
+      wasUpvoted ? next.delete(issueId) : next.add(issueId);
+      return next;
+    });
+    setUpvoteCounts((prev) => ({ ...prev, [issueId]: wasUpvoted ? prevCount - 1 : prevCount + 1 }));
+
+    try {
+      const res = await issuesApi.upvote(issueId);
+      if (res.upvoted !== !wasUpvoted) {
+        setUpvotedIds((prev) => {
+          const next = new Set(prev);
+          res.upvoted ? next.add(issueId) : next.delete(issueId);
+          return next;
+        });
+        setUpvoteCounts((prev) => ({ ...prev, [issueId]: res.upvoted ? prevCount + 1 : prevCount - 1 }));
+      }
+      toast({ title: res.upvoted ? "Issue upvoted!" : "Upvote removed" });
+    } catch {
+      // Revert
+      setUpvotedIds((prev) => {
+        const next = new Set(prev);
+        wasUpvoted ? next.add(issueId) : next.delete(issueId);
+        return next;
+      });
+      setUpvoteCounts((prev) => ({ ...prev, [issueId]: prevCount }));
+      toast({ title: "Failed to upvote", variant: "destructive" });
+    }
+  };
+
+  const handleCommentClick = (e: React.MouseEvent, issueId: string) => {
+    e.preventDefault();
+    e.stopPropagation();
+    navigate(`/dashboard/issue/${issueId}#comments`);
+  };
 
   useEffect(() => {
     if (!user) return;
