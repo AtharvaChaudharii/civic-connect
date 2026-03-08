@@ -329,13 +329,25 @@ const CitizenDashboard = () => {
                         </p>
                       </div>
                       <div className="mt-3 flex items-center justify-between border-t pt-3">
-                        <div className="flex items-center gap-4 text-caption text-muted-foreground">
-                          <span className="flex items-center gap-1">
-                            <ThumbsUp className="h-3.5 w-3.5" /> {issue._count?.upvotes ?? 0}
-                          </span>
-                          <span className="flex items-center gap-1">
+                        <div className="flex items-center gap-4 text-caption">
+                          <button
+                            onClick={(e) => handleUpvote(e, issue.id)}
+                            className={cn(
+                              "flex items-center gap-1.5 rounded-full px-3 py-1 transition-colors",
+                              upvotedIds.has(issue.id)
+                                ? "bg-primary/10 text-primary font-medium"
+                                : "text-muted-foreground hover:bg-muted hover:text-foreground"
+                            )}
+                          >
+                            <ThumbsUp className={cn("h-3.5 w-3.5", upvotedIds.has(issue.id) && "fill-current")} />
+                            {upvoteCounts[issue.id] ?? issue._count?.upvotes ?? 0}
+                          </button>
+                          <button
+                            onClick={(e) => handleCommentClick(e, issue.id)}
+                            className="flex items-center gap-1.5 rounded-full px-3 py-1 text-muted-foreground transition-colors hover:bg-muted hover:text-foreground"
+                          >
                             <MessageSquare className="h-3.5 w-3.5" /> {issue._count?.comments ?? 0}
-                          </span>
+                          </button>
                         </div>
                         <span className="flex items-center gap-1 text-caption font-medium text-primary opacity-0 transition-opacity group-hover:opacity-100">
                           View Details <ArrowRight className="h-3.5 w-3.5" />
