@@ -43,6 +43,13 @@ const IssueDetail = () => {
       .finally(() => setLoading(false));
   }, [id, user?.id]);
 
+  // Scroll to comments if #comments hash is present
+  useEffect(() => {
+    if (!loading && location.hash === "#comments" && commentsRef.current) {
+      commentsRef.current.scrollIntoView({ behavior: "smooth", block: "start" });
+    }
+  }, [loading, location.hash]);
+
   // ── Real-time: join/leave issue room & listen for updates ──
   useEffect(() => {
     if (!id || !socket) return;
