@@ -37,6 +37,8 @@ interface IssueMapProps {
   singlePin?: [number, number];
   draggablePin?: boolean;
   onPinMove?: (lat: number, lng: number) => void;
+  /** Custom color function per issue — overrides status-based coloring */
+  colorFn?: (issue: Issue) => string;
 }
 
 const IssueMap = ({
@@ -48,6 +50,7 @@ const IssueMap = ({
   singlePin,
   draggablePin = false,
   onPinMove,
+  colorFn,
 }: IssueMapProps) => {
   const mapRef = useRef<HTMLDivElement>(null);
   const mapInstanceRef = useRef<L.Map | null>(null);
@@ -76,9 +79,16 @@ const IssueMap = ({
       }
     } else {
       issues.forEach((issue) => {
-        const marker = L.marker([issue.lat, issue.lng], {
-          icon: createIcon(issue.status),
-        }).addTo(map);
+        const color = colorFn ? colorFn(issue) : undefined;
+        const icon = color
+          ? L.divIcon({
+              html: `<div style="background:${color};width:14px;height:14px;border-radius:50%;border:2px solid white;box-shadow:0 2px 4px rgba(0,0,0,.3)"></div>`,
+              className: "",
+              iconSize: [14, 14],
+              iconAnchor: [7, 7],
+            })
+          : createIcon(issue.status);
+        const marker = L.marker([issue.lat, issue.lng], { icon }).addTo(map);
 
         marker.bindPopup(`
           <div style="min-width:180px">
