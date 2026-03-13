@@ -4,6 +4,7 @@ import {
     getDepartmentPerformance,
     getEscalations,
     exportReport,
+    getReportAnalytics,
 } from "../controllers/municipalController.js";
 import { authenticate, authorize } from "../middleware/auth.js";
 import { cityIsolation } from "../middleware/cityIsolation.js";
@@ -21,6 +22,9 @@ router.get("/departments", getDepartmentPerformance);
 
 // Escalated issues
 router.get("/escalations", getEscalations);
+
+// Report analytics (charts, trends, insights)
+router.get("/reports/analytics", getReportAnalytics);
 
 // Export report (CSV or JSON)
 router.get("/reports/export", exportReport);

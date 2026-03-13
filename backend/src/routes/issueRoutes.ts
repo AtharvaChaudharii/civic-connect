@@ -7,6 +7,8 @@ import {
     toggleUpvote,
     addComment,
     getUserIssues,
+    getMapIssues,
+    getComments,
 } from "../controllers/issueController.js";
 import { authenticate, authorize } from "../middleware/auth.js";
 import { upload, uploadToCloudinary } from "../middleware/upload.js";
@@ -22,6 +24,9 @@ router.post("/", authorize("citizen"), upload.single("image"), uploadToCloudinar
 // List issues (all authenticated users can view)
 router.get("/", getIssues);
 
+// Lightweight map data — geo-only fields, higher limit
+router.get("/map", getMapIssues);
+
 // Nearby issues
 router.get("/nearby", getNearbyIssues);
 
@@ -30,6 +35,9 @@ router.get("/user/:userId", getUserIssues);
 
 // Issue detail
 router.get("/:id", getIssueById);
+
+// Paginated comments for an issue
+router.get("/:id/comments", getComments);
 
 // Upvote
 router.post("/:id/upvote", authorize("citizen"), toggleUpvote);

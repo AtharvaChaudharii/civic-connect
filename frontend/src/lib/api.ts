@@ -109,6 +109,16 @@ export const issues = {
             body: JSON.stringify({ content }),
         }),
 
+    getComments: (id: string, params?: Record<string, string>) => {
+        const qs = params ? "?" + new URLSearchParams(params).toString() : "";
+        return request<{ comments: ApiComment[]; pagination: { nextCursor: string | null; total: number; hasMore: boolean } }>(`/issues/${id}/comments${qs}`);
+    },
+
+    mapData: (params?: Record<string, string>) => {
+        const qs = params ? "?" + new URLSearchParams(params).toString() : "";
+        return request<{ issues: ApiMapIssue[] }>(`/issues/map${qs}`);
+    },
+
     byUser: (userId: string, params?: Record<string, string>) => {
         const qs = params ? "?" + new URLSearchParams(params).toString() : "";
         return request<{ issues: ApiIssue[]; pagination: ApiPagination }>(`/issues/user/${userId}${qs}`);
@@ -154,20 +164,25 @@ export const tickets = {
 
 export const municipal = {
     overview: () =>
-        request<{ city: string; overview: ApiOverviewStats; departments: ApiDeptStat[] }>(
+        request<{ city: string; overview: ApiOverviewStats; departments: ApiDeptStat[]; citizenCount: number; recentIssuesCount: number }>(
             "/municipal/overview"
         ),
 
     departments: () =>
         request<{ departments: ApiDeptPerf[] }>("/municipal/departments"),
 
-    escalations: () =>
-        request<{ escalations: ApiEscalation[] }>("/municipal/escalations"),
+    escalations: (params?: Record<string, string>) => {
+        const qs = params ? "?" + new URLSearchParams(params).toString() : "";
+        return request<{ escalations: ApiEscalation[]; pagination: ApiPagination }>(`/municipal/escalations${qs}`);
+    },
 
     exportReport: (format?: string) => {
         const qs = format ? `?format=${format}` : "";
         return request<ApiExportReport>(`/municipal/reports/export${qs}`);
     },
+
+    reportAnalytics: () =>
+        request<ApiReportAnalytics>("/municipal/reports/analytics"),
 };
 
 // ── Notifications ──
@@ -309,6 +324,7 @@ export interface ApiOverviewStats {
     ongoing: number;
     resolved: number;
     escalated: number;
+    resolutionRate: number;
 }
 
 export interface ApiDeptStat {
@@ -327,6 +343,8 @@ export interface ApiDeptPerf {
     departmentId: string;
     categoryType: string;
     total: number;
+    pending: number;
+    ongoing: number;
     resolved: number;
     escalated: number;
     resolutionRate: number;
@@ -343,6 +361,8 @@ export interface ApiEscalation {
         id: string;
         title: string;
         location: string;
+        lat: number;
+        lng: number;
         category: string;
         reporters: number;
         createdAt: string;
@@ -363,8 +383,34 @@ export interface ApiNotification {
 export interface ApiExportReport {
     city: string;
     report: ApiOverviewStats;
-    departmentBreakdown: { department: string; count: number }[];
+    departmentBreakdown: { department: string; count: number; pending: number; ongoing: number; resolved: number; escalated: number }[];
     generatedAt: string;
+}
+
+export interface ApiMapIssue {
+    id: string;
+    title: string;
+    category: string;
+    location: string;
+    lat: number;
+    lng: number;
+    status: string;
+    reporters: number;
+    createdAt: string;
+    consolidatedTicket?: {
+        departmentId: string;
+        department: { name: string };
+    } | null;
+}
+
+export interface ApiReportAnalytics {
+    monthlyTrend: { month: string; created: number; resolved: number }[];
+    categoryBreakdown: { category: string; count: number }[];
+    departmentAnalysis: { department: string; departmentId: string; total: number; resolved: number; resolutionRate: number }[];
+    insights: {
+        bestDepartment: { department: string; resolutionRate: number } | null;
+        worstDepartment: { department: string; resolutionRate: number } | null;
+    };
 }
 
 // Category display name mapping (backend uses PascalCase without spaces)

@@ -119,8 +119,8 @@ export async function getIssues(req: Request, res: Response): Promise<void> {
         }
 
         const pageNum = Math.max(1, parseInt(page as string, 10));
-        // Cap at 20 per page for the feed to keep response fast
-        const limitNum = Math.min(20, Math.max(1, parseInt(limit as string, 10)));
+        // Cap at 100 per page (higher limit for admin/map use-cases)
+        const limitNum = Math.min(100, Math.max(1, parseInt(limit as string, 10)));
         const skip = (pageNum - 1) * limitNum;
 
         const [issues, total] = await Promise.all([
@@ -335,7 +335,7 @@ export async function getUserIssues(req: Request, res: Response): Promise<void> 
         const { page = "1", limit = "20", search, status } = req.query;
 
         const pageNum = Math.max(1, parseInt(page as string, 10));
-        const limitNum = Math.min(20, Math.max(1, parseInt(limit as string, 10)));
+        const limitNum = Math.min(100, Math.max(1, parseInt(limit as string, 10)));
         const skip = (pageNum - 1) * limitNum;
 
         const where: Record<string, unknown> = { reportedById: userId };
@@ -374,6 +374,107 @@ export async function getUserIssues(req: Request, res: Response): Promise<void> 
         res.json({ issues, pagination: { page: pageNum, limit: limitNum, total, totalPages: Math.ceil(total / limitNum) } });
     } catch (error) {
         console.error("Get user issues error:", error);
+        res.status(500).json({ error: "Something went wrong. Please try again." });
+    }
+}
+
+/**
+ * GET /api/issues/map
+ * Lightweight geo-only data for map rendering.
+ * Returns ALL issues for a city (no pagination cap) with minimal fields.
+ * Used by admin overview, departments, escalations pages.
+ */
+export async function getMapIssues(req: Request, res: Response): Promise<void> {
+    try {
+        const { cityId, category, status, department } = req.query;
+
+        const where: any = {};
+        if (cityId) where.cityId = cityId;
+        if (category) where.category = category;
+        if (status) where.status = status;
+        if (department) {
+            // Filter by department via consolidated ticket
+            where.consolidatedTicket = { departmentId: department };
+        }
+
+        const issues = await prisma.issuePost.findMany({
+            where,
+            select: {
+                id: true,
+                title: true,
+                category: true,
+                location: true,
+                lat: true,
+                lng: true,
+                status: true,
+                reporters: true,
+                createdAt: true,
+                consolidatedTicket: {
+                    select: {
+                        departmentId: true,
+                        department: { select: { name: true } },
+                    },
+                },
+            },
+            orderBy: { createdAt: "desc" },
+            take: 500, // Hard cap at 500 for performance
+        });
+
+        res.json({ issues });
+    } catch (error) {
+        console.error("Get map issues error:", error);
+        res.status(500).json({ error: "Something went wrong. Please try again." });
+    }
+}
+
+/**
+ * GET /api/issues/:id/comments
+ * Paginated comments for an issue post.
+ * Supports cursor-based pagination via `cursor` query param.
+ */
+export async function getComments(req: Request, res: Response): Promise<void> {
+    try {
+        const issuePostId = req.params.id as string;
+        const { cursor, limit = "20" } = req.query;
+        const limitNum = Math.min(50, Math.max(1, parseInt(limit as string, 10)));
+
+        const where: any = { issuePostId };
+        const options: any = {
+            where,
+            select: {
+                id: true,
+                content: true,
+                image: true,
+                isDepartmentUpdate: true,
+                createdAt: true,
+                user: { select: { id: true, name: true, role: true, avatar: true } },
+            },
+            orderBy: { createdAt: "asc" },
+            take: limitNum,
+        };
+
+        if (cursor) {
+            options.skip = 1; // skip the cursor itself
+            options.cursor = { id: cursor as string };
+        }
+
+        const comments = await prisma.comment.findMany(options);
+
+        const nextCursor = comments.length === limitNum ? comments[comments.length - 1].id : null;
+
+        // Also get total count for display
+        const total = await prisma.comment.count({ where: { issuePostId } });
+
+        res.json({
+            comments,
+            pagination: {
+                nextCursor,
+                total,
+                hasMore: nextCursor !== null,
+            },
+        });
+    } catch (error) {
+        console.error("Get comments error:", error);
         res.status(500).json({ error: "Something went wrong. Please try again." });
     }
 }

@@ -4,7 +4,7 @@ import prisma from "../config/db.js";
 /**
  * GET /api/municipal/overview
  * City-level overview dashboard with stats breakdown by department and status.
- * Optimised: single groupBy query instead of N+1 count queries.
+ * Enriched: includes resolution rate, citizen count, recent trends.
  */
 export async function getCityOverview(req: Request, res: Response): Promise<void> {
     try {
@@ -14,8 +14,8 @@ export async function getCityOverview(req: Request, res: Response): Promise<void
             return;
         }
 
-        // Fetch city info, issue status counts, and dept ticket counts — all in parallel
-        const [city, issueStatusGroups, deptTicketGroups, departments] = await Promise.all([
+        // Fetch city info, issue status counts, dept ticket counts, citizen count — all in parallel
+        const [city, issueStatusGroups, deptTicketGroups, departments, citizenCount, recentIssuesCount] = await Promise.all([
             prisma.city.findUnique({ where: { id: cityId }, select: { name: true } }),
             // Single groupBy instead of 5 separate counts
             prisma.issuePost.groupBy({
@@ -32,6 +32,17 @@ export async function getCityOverview(req: Request, res: Response): Promise<void
             prisma.department.findMany({
                 where: { cityId },
                 select: { id: true, name: true, categoryType: true },
+            }),
+            // Count of citizens in this city
+            prisma.user.count({
+                where: { cityId, role: "citizen" },
+            }),
+            // Issues created in the last 7 days
+            prisma.issuePost.count({
+                where: {
+                    cityId,
+                    createdAt: { gte: new Date(Date.now() - 7 * 24 * 60 * 60 * 1000) },
+                },
             }),
         ]);
 
@@ -74,10 +85,19 @@ export async function getCityOverview(req: Request, res: Response): Promise<void
             };
         });
 
+        const resolutionRate = overview.total > 0
+            ? Math.round((overview.resolved / overview.total) * 100)
+            : 0;
+
         res.json({
             city: city?.name || "Unknown",
-            overview,
+            overview: {
+                ...overview,
+                resolutionRate,
+            },
             departments: departmentStats,
+            citizenCount,
+            recentIssuesCount,
         });
     } catch (error) {
         console.error("Get city overview error:", error);
@@ -88,7 +108,7 @@ export async function getCityOverview(req: Request, res: Response): Promise<void
 /**
  * GET /api/municipal/departments
  * Department-wise performance stats.
- * Optimised: groupBy replaces N+1 count loops; single resolved-tickets fetch.
+ * Enriched: includes pending + ongoing counts per department.
  */
 export async function getDepartmentPerformance(req: Request, res: Response): Promise<void> {
     try {
@@ -137,13 +157,11 @@ export async function getDepartmentPerformance(req: Request, res: Response): Pro
             ticketIndex.get(`${deptId}:${status}`) ?? 0;
 
         const stats = departments.map((dept) => {
-            const total =
-                getCount(dept.id, "Pending") +
-                getCount(dept.id, "Ongoing") +
-                getCount(dept.id, "Resolved") +
-                getCount(dept.id, "Escalated");
+            const pending = getCount(dept.id, "Pending");
+            const ongoing = getCount(dept.id, "Ongoing");
             const resolved = getCount(dept.id, "Resolved");
             const escalated = getCount(dept.id, "Escalated");
+            const total = pending + ongoing + resolved + escalated;
 
             const days = resolutionMap.get(dept.id) ?? [];
             const avgResolutionDays =
@@ -156,6 +174,8 @@ export async function getDepartmentPerformance(req: Request, res: Response): Pro
                 departmentId: dept.id,
                 categoryType: dept.categoryType,
                 total,
+                pending,
+                ongoing,
                 resolved,
                 escalated,
                 resolutionRate: total > 0 ? Math.round((resolved / total) * 100) : 0,
@@ -173,6 +193,7 @@ export async function getDepartmentPerformance(req: Request, res: Response): Pro
 /**
  * GET /api/municipal/escalations
  * All escalated issues in the city.
+ * Enriched: includes lat/lng for map display, pagination support.
  */
 export async function getEscalations(req: Request, res: Response): Promise<void> {
     try {
@@ -182,27 +203,49 @@ export async function getEscalations(req: Request, res: Response): Promise<void>
             return;
         }
 
-        const escalatedTickets = await prisma.consolidatedTicket.findMany({
-            where: { cityId, status: "Escalated" },
-            include: {
-                department: { select: { id: true, name: true } },
-                issuePosts: {
-                    select: {
-                        id: true,
-                        title: true,
-                        location: true,
-                        category: true,
-                        reporters: true,
-                        createdAt: true,
-                    },
-                    orderBy: { createdAt: "asc" },
-                    take: 1, // just the original post
-                },
-            },
-            orderBy: { escalatedAt: "desc" },
-        });
+        const { page = "1", limit = "50" } = req.query;
+        const pageNum = Math.max(1, parseInt(page as string, 10));
+        const limitNum = Math.min(100, Math.max(1, parseInt(limit as string, 10)));
+        const skip = (pageNum - 1) * limitNum;
 
-        res.json({ escalations: escalatedTickets });
+        const [escalatedTickets, total] = await Promise.all([
+            prisma.consolidatedTicket.findMany({
+                where: { cityId, status: "Escalated" },
+                include: {
+                    department: { select: { id: true, name: true } },
+                    issuePosts: {
+                        select: {
+                            id: true,
+                            title: true,
+                            location: true,
+                            lat: true,
+                            lng: true,
+                            category: true,
+                            reporters: true,
+                            createdAt: true,
+                        },
+                        orderBy: { createdAt: "asc" },
+                        take: 1, // just the original post
+                    },
+                },
+                orderBy: { escalatedAt: "desc" },
+                skip,
+                take: limitNum,
+            }),
+            prisma.consolidatedTicket.count({
+                where: { cityId, status: "Escalated" },
+            }),
+        ]);
+
+        res.json({
+            escalations: escalatedTickets,
+            pagination: {
+                page: pageNum,
+                limit: limitNum,
+                total,
+                totalPages: Math.ceil(total / limitNum),
+            },
+        });
     } catch (error) {
         console.error("Get escalations error:", error);
         res.status(500).json({ error: "Something went wrong. Please try again." });
@@ -212,7 +255,7 @@ export async function getEscalations(req: Request, res: Response): Promise<void>
 /**
  * GET /api/municipal/reports/export
  * Generate city report data (CSV export format).
- * Optimised: groupBy replaces 5 + N individual count queries.
+ * Enriched: includes per-department breakdown by status.
  */
 export async function exportReport(req: Request, res: Response): Promise<void> {
     try {
@@ -222,7 +265,7 @@ export async function exportReport(req: Request, res: Response): Promise<void> {
             return;
         }
 
-        const [city, statusGroups, deptGroups, departments] = await Promise.all([
+        const [city, statusGroups, deptStatusGroups, departments] = await Promise.all([
             prisma.city.findUnique({ where: { id: cityId }, select: { name: true } }),
             // One groupBy replaces 5 separate counts
             prisma.consolidatedTicket.groupBy({
@@ -230,9 +273,9 @@ export async function exportReport(req: Request, res: Response): Promise<void> {
                 where: { cityId },
                 _count: { _all: true },
             }),
-            // One groupBy replaces N per-department counts
+            // Per-department per-status counts
             prisma.consolidatedTicket.groupBy({
-                by: ["departmentId"],
+                by: ["departmentId", "status"],
                 where: { cityId },
                 _count: { _all: true },
             }),
@@ -255,16 +298,29 @@ export async function exportReport(req: Request, res: Response): Promise<void> {
         const ongoing = statusMap.get("Ongoing") ?? 0;
         const escalated = statusMap.get("Escalated") ?? 0;
 
-        // Build dept breakdown
-        type DeptGroup = { departmentId: string; _count: { _all: number } };
-        const deptCountMap = new Map<string, number>();
-        for (const g of deptGroups as DeptGroup[]) {
-            deptCountMap.set(g.departmentId, g._count._all);
+        // Build dept breakdown with per-status counts
+        type DeptStatusGroup = { departmentId: string; status: string; _count: { _all: number } };
+        const deptStatusIndex = new Map<string, number>();
+        for (const g of deptStatusGroups as DeptStatusGroup[]) {
+            deptStatusIndex.set(`${g.departmentId}:${g.status}`, g._count._all);
         }
-        const deptBreakdown = departments.map((d) => ({
-            department: d.name,
-            count: deptCountMap.get(d.id) ?? 0,
-        }));
+        const getDeptCount = (deptId: string, status: string) =>
+            deptStatusIndex.get(`${deptId}:${status}`) ?? 0;
+
+        const deptBreakdown = departments.map((d) => {
+            const dPending = getDeptCount(d.id, "Pending");
+            const dOngoing = getDeptCount(d.id, "Ongoing");
+            const dResolved = getDeptCount(d.id, "Resolved");
+            const dEscalated = getDeptCount(d.id, "Escalated");
+            return {
+                department: d.name,
+                count: dPending + dOngoing + dResolved + dEscalated,
+                pending: dPending,
+                ongoing: dOngoing,
+                resolved: dResolved,
+                escalated: dEscalated,
+            };
+        });
 
         const { format } = req.query;
 
@@ -276,8 +332,10 @@ export async function exportReport(req: Request, res: Response): Promise<void> {
             csv += `Pending,${pending}\n`;
             csv += `Ongoing,${ongoing}\n`;
             csv += `Escalated,${escalated}\n\n`;
-            csv += "Department,Ticket Count\n";
-            deptBreakdown.forEach((d) => { csv += `${d.department},${d.count}\n`; });
+            csv += "Department,Total,Pending,Ongoing,Resolved,Escalated\n";
+            deptBreakdown.forEach((d) => {
+                csv += `${d.department},${d.count},${d.pending},${d.ongoing},${d.resolved},${d.escalated}\n`;
+            });
 
             res.setHeader("Content-Type", "text/csv");
             res.setHeader("Content-Disposition", `attachment; filename=${city?.name || "city"}-report.csv`);
@@ -292,6 +350,113 @@ export async function exportReport(req: Request, res: Response): Promise<void> {
         }
     } catch (error) {
         console.error("Export report error:", error);
+        res.status(500).json({ error: "Something went wrong. Please try again." });
+    }
+}
+
+/**
+ * GET /api/municipal/reports/analytics
+ * Advanced analytics for the admin reports page.
+ * Provides monthly trends, category breakdown, and best/worst department insights.
+ */
+export async function getReportAnalytics(req: Request, res: Response): Promise<void> {
+    try {
+        const cityId = req.user!.cityId;
+        if (!cityId) {
+            res.status(403).json({ error: "Your account is not associated with a city." });
+            return;
+        }
+
+        // Get issues created per month for the last 6 months
+        const sixMonthsAgo = new Date();
+        sixMonthsAgo.setMonth(sixMonthsAgo.getMonth() - 6);
+
+        const [issuesByMonth, categoryGroups, deptPerf] = await Promise.all([
+            prisma.issuePost.findMany({
+                where: { cityId, createdAt: { gte: sixMonthsAgo } },
+                select: { createdAt: true, status: true },
+                orderBy: { createdAt: "asc" },
+            }),
+            // Category breakdown
+            prisma.issuePost.groupBy({
+                by: ["category"],
+                where: { cityId },
+                _count: { _all: true },
+            }),
+            // Department performance for best/worst
+            prisma.consolidatedTicket.groupBy({
+                by: ["departmentId", "status"],
+                where: { cityId },
+                _count: { _all: true },
+            }),
+        ]);
+
+        // Build monthly trend data
+        const monthlyMap = new Map<string, { created: number; resolved: number }>();
+        for (const issue of issuesByMonth) {
+            const monthKey = `${issue.createdAt.getFullYear()}-${String(issue.createdAt.getMonth() + 1).padStart(2, "0")}`;
+            const entry = monthlyMap.get(monthKey) ?? { created: 0, resolved: 0 };
+            entry.created += 1;
+            if (issue.status === "Resolved") entry.resolved += 1;
+            monthlyMap.set(monthKey, entry);
+        }
+        const monthlyTrend = Array.from(monthlyMap.entries())
+            .sort(([a], [b]) => a.localeCompare(b))
+            .map(([month, data]) => ({
+                month,
+                ...data,
+            }));
+
+        // Category breakdown
+        const categoryBreakdown = categoryGroups.map((g) => ({
+            category: g.category,
+            count: g._count._all,
+        }));
+
+        // Department performance analysis
+        const departments = await prisma.department.findMany({
+            where: { cityId },
+            select: { id: true, name: true },
+        });
+
+        type DeptPerfGroup = { departmentId: string; status: string; _count: { _all: number } };
+        const perfIndex = new Map<string, number>();
+        for (const g of deptPerf as DeptPerfGroup[]) {
+            perfIndex.set(`${g.departmentId}:${g.status}`, g._count._all);
+        }
+        const getPerfCount = (deptId: string, status: string) =>
+            perfIndex.get(`${deptId}:${status}`) ?? 0;
+
+        const deptAnalysis = departments.map((dept) => {
+            const dTotal =
+                getPerfCount(dept.id, "Pending") +
+                getPerfCount(dept.id, "Ongoing") +
+                getPerfCount(dept.id, "Resolved") +
+                getPerfCount(dept.id, "Escalated");
+            const dResolved = getPerfCount(dept.id, "Resolved");
+            return {
+                department: dept.name,
+                departmentId: dept.id,
+                total: dTotal,
+                resolved: dResolved,
+                resolutionRate: dTotal > 0 ? Math.round((dResolved / dTotal) * 100) : 0,
+            };
+        });
+
+        const bestDept = deptAnalysis.reduce((a, b) => a.resolutionRate > b.resolutionRate ? a : b, deptAnalysis[0]);
+        const worstDept = deptAnalysis.reduce((a, b) => a.resolutionRate < b.resolutionRate ? a : b, deptAnalysis[0]);
+
+        res.json({
+            monthlyTrend,
+            categoryBreakdown,
+            departmentAnalysis: deptAnalysis,
+            insights: {
+                bestDepartment: bestDept || null,
+                worstDepartment: worstDept || null,
+            },
+        });
+    } catch (error) {
+        console.error("Get report analytics error:", error);
         res.status(500).json({ error: "Something went wrong. Please try again." });
     }
 }
