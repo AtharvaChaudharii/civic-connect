@@ -55,7 +55,7 @@ app.use(errorHandler);
 httpServer.listen(env.PORT, () => {
     console.log(`
 ╔══════════════════════════════════════════╗
-║     🏛  CivicConnect API Server         ║
+║     CivicConnect API Server              ║
 ║     Port: ${String(env.PORT).padEnd(29)}║
 ║     Env:  ${String(env.NODE_ENV).padEnd(29)}║
 ╚══════════════════════════════════════════╝

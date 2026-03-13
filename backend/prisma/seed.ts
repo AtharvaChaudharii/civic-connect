@@ -4,7 +4,7 @@ import bcrypt from "bcryptjs";
 const prisma = new PrismaClient();
 
 async function main() {
-    console.log("🌱 Seeding database...\n");
+    console.log("[Seed] Seeding database...\n");
 
     // ── Cities ──
     const pune = await prisma.city.upsert({
@@ -23,7 +23,7 @@ async function main() {
         create: { name: "Bangalore", state: "Karnataka" },
     });
 
-    console.log("✅ Cities created");
+    console.log("[Seed] Cities created");
 
     // ── Departments (Pune) ──
     const puneSanitation = await prisma.department.upsert({
@@ -69,7 +69,7 @@ async function main() {
         create: { name: "Drainage", categoryType: "Drainage", cityId: mumbai.id },
     });
 
-    console.log("✅ Departments created");
+    console.log("[Seed] Departments created");
 
     // ── Users ──
     const hashedPassword = await bcrypt.hash("password123", 12);
@@ -195,7 +195,7 @@ async function main() {
         },
     });
 
-    console.log("✅ Users created");
+    console.log("[Seed] Users created");
 
     // ── Consolidated Tickets ──
     function daysAgo(n: number): Date {
@@ -282,7 +282,7 @@ async function main() {
         },
     });
 
-    console.log("✅ Consolidated tickets created");
+    console.log("[Seed] Consolidated tickets created");
 
     // ── Issue Posts ──
     const issue1 = await prisma.issuePost.create({
@@ -438,7 +438,7 @@ async function main() {
         },
     });
 
-    console.log("✅ Issue posts created");
+    console.log("[Seed] Issue posts created");
 
     // ── Comments ──
     await prisma.comment.createMany({
@@ -485,7 +485,7 @@ async function main() {
         ],
     });
 
-    console.log("✅ Comments created");
+    console.log("[Seed] Comments created");
 
     // ── Notifications ──
     await prisma.notification.createMany({
@@ -536,10 +536,10 @@ async function main() {
         ],
     });
 
-    console.log("✅ Notifications created");
+    console.log("[Seed] Notifications created");
 
-    console.log("\n🎉 Database seeded successfully!");
-    console.log("\n📋 Test Credentials (all use password: password123):");
+    console.log("\n[Seed] Database seeded successfully!");
+    console.log("\n[Seed] Test Credentials (all use password: password123):");
     console.log("   Citizen:    citizen@civictrack.in");
     console.log("   Department: sanitation@pune.gov.in");
     console.log("   Municipal:  admin@pmc.gov.in");

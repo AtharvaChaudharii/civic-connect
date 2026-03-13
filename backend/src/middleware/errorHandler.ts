@@ -5,7 +5,7 @@ import type { Request, Response, NextFunction } from "express";
  * Catches all unhandled errors and returns a clean JSON response.
  */
 export function errorHandler(err: Error, _req: Request, res: Response, _next: NextFunction): void {
-    console.error("🔥 Unhandled Error:", err.message);
+    console.error("[Error] Unhandled Error:", err.message);
     if (process.env.NODE_ENV === "development") {
         console.error(err.stack);
     }

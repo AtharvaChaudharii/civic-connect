@@ -9,18 +9,18 @@ import { runEscalation } from "../services/escalationService.js";
  */
 export function startEscalationJob(): void {
     cron.schedule("0 0 * * *", async () => {
-        console.log("⏱  Running escalation check...");
+        console.log("[Escalation] Running escalation check...");
         try {
             const count = await runEscalation();
             if (count > 0) {
-                console.log(`🔴 Escalated ${count} ticket(s).`);
+                console.log(`[Escalation] Escalated ${count} ticket(s).`);
             } else {
-                console.log("✅ No tickets to escalate.");
+                console.log("[Escalation] No tickets to escalate.");
             }
         } catch (error) {
-            console.error("❌ Escalation job error:", error);
+            console.error("[Escalation] Escalation job error:", error);
         }
     });
 
-    console.log("📅 Escalation cron job scheduled (daily at midnight).");
+    console.log("[Escalation] Cron job scheduled (daily at midnight).");
 }

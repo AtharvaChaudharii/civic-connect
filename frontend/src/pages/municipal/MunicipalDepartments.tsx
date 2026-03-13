@@ -39,12 +39,12 @@ const CATEGORY_TO_DEPT: Record<string, string> = {
 };
 
 const deptEmoji: Record<string, string> = {
-  Sanitation: "🗑️",
-  "Roads & Infrastructure": "🏗️",
-  "Water Supply": "💧",
-  Electrical: "💡",
-  Drainage: "🌊",
-  General: "📋",
+  Sanitation: "SN",
+  "Roads & Infrastructure": "RI",
+  "Water Supply": "WS",
+  Electrical: "EL",
+  Drainage: "DR",
+  General: "GN",
 };
 
 const MunicipalDepartments = () => {
@@ -172,7 +172,7 @@ const MunicipalDepartments = () => {
             Department Performance
           </h1>
           <p className="text-sm text-muted-foreground">
-            Compare department metrics across {user?.city?.name || user?.city}
+            Compare department metrics across {user?.city || "your city"}
           </p>
         </div>
         <Button variant="outline" className="gap-2">
@@ -208,7 +208,7 @@ const MunicipalDepartments = () => {
           className="flex h-14 w-14 items-center justify-center rounded-xl text-2xl"
           style={{ background: `${deptColor}20` }}
         >
-          {deptEmoji[activeDept] || "📋"}
+          <span className="text-xs font-mono font-semibold text-muted-foreground">{deptEmoji[activeDept] || "--"}</span>
         </div>
         <div className="flex-1">
           <h2 className="text-lg font-bold text-foreground">{activeDept}</h2>
@@ -218,13 +218,12 @@ const MunicipalDepartments = () => {
         </div>
         <div className="hidden sm:flex items-center gap-2">
           <span
-            className={`rounded-full px-3 py-1 text-xs font-semibold ${
-              escRate <= 10
-                ? "bg-accent text-accent-foreground"
-                : "bg-destructive/10 text-destructive"
-            }`}
+            className={`rounded-full px-3 py-1 text-xs font-semibold ${escRate <= 10
+              ? "bg-accent text-accent-foreground"
+              : "bg-destructive/10 text-destructive"
+              }`}
           >
-            {escRate <= 10 ? "✓ Healthy" : "⚠ Warning"}
+            {escRate <= 10 ? "Healthy" : "Warning"}
           </span>
         </div>
       </div>
@@ -409,7 +408,7 @@ const MunicipalDepartments = () => {
                     <td className="py-3">
                       <div className="flex items-center gap-2">
                         <span className="inline-block h-2.5 w-2.5 rounded-full" style={{ background: dc }} />
-                        <span className="text-xs">{deptEmoji[d.department] || "📋"}</span>
+                        <span className="text-xs font-mono font-semibold text-muted-foreground">{deptEmoji[d.department] || "--"}</span>
                         <span className={`font-medium ${isActive ? "text-foreground" : "text-muted-foreground"}`}>
                           {d.department}
                         </span>

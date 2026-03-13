@@ -214,12 +214,12 @@ const MunicipalReports = () => {
       {bestDept && worstDept && (
         <div className="grid gap-4 sm:grid-cols-2">
           <div className="rounded-xl border bg-green-500/5 p-5 shadow-sm">
-            <p className="text-caption text-muted-foreground mb-1">🏆 Best Performing</p>
+            <p className="text-caption text-muted-foreground mb-1">Best Performing</p>
             <p className="text-body font-semibold text-foreground">{bestDept.department}</p>
             <p className="text-caption text-green-600">{bestDept.resolutionRate}% resolution · {bestDept.avgResolutionDays}d avg</p>
           </div>
           <div className="rounded-xl border bg-destructive/5 p-5 shadow-sm">
-            <p className="text-caption text-muted-foreground mb-1">⚠️ Needs Attention</p>
+            <p className="text-caption text-muted-foreground mb-1">Needs Attention</p>
             <p className="text-body font-semibold text-foreground">{worstDept.department}</p>
             <p className="text-caption text-destructive">{worstDept.resolutionRate}% resolution · {worstDept.escalated} escalated</p>
           </div>

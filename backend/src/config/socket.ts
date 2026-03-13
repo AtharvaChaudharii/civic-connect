@@ -64,7 +64,7 @@ export function initSocket(httpServer: HttpServer): Server {
             socket.join(`department:${user.departmentId}`);
         }
 
-        console.log(`🔌 Socket connected: ${user.email} (${user.role})`);
+        console.log(`[Socket] Connected: ${user.email} (${user.role})`);
 
         // ── Client can join / leave issue rooms dynamically ──
         socket.on("join:issue", (issueId: string) => {
@@ -76,11 +76,11 @@ export function initSocket(httpServer: HttpServer): Server {
         });
 
         socket.on("disconnect", () => {
-            console.log(`🔌 Socket disconnected: ${user.email}`);
+            console.log(`[Socket] Disconnected: ${user.email}`);
         });
     });
 
-    console.log("⚡ Socket.IO initialised");
+    console.log("[Socket] Socket.IO initialised");
     return io;
 }
 

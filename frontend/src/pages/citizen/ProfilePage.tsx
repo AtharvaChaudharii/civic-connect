@@ -5,7 +5,7 @@ import StatusBadge from "@/components/StatusBadge";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { MapPin, FileText, ThumbsUp, Search, PlusCircle, ChevronLeft, ChevronRight, CheckCircle, Loader2 } from "lucide-react";
+import { MapPin, FileText, ThumbsUp, MessageSquare, Search, PlusCircle, ChevronLeft, ChevronRight, CheckCircle, Loader2 } from "lucide-react";
 import { Link } from "react-router-dom";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 
@@ -159,7 +159,7 @@ const ProfilePage = () => {
                           <div className="mt-2 flex items-center justify-between">
                             <div className="flex items-center gap-3 text-caption text-muted-foreground">
                               <span className="flex items-center gap-1"><ThumbsUp className="h-3.5 w-3.5" /> {issue._count?.upvotes ?? 0}</span>
-                              <span className="flex items-center gap-1">💬 {issue._count?.comments ?? 0}</span>
+                              <span className="flex items-center gap-1"><MessageSquare className="h-3.5 w-3.5" /> {issue._count?.comments ?? 0}</span>
                               <span className="rounded-md border px-2 py-0.5 text-label">{CATEGORY_DISPLAY[issue.category] || issue.category}</span>
                             </div>
                             <Link to={`/dashboard/issue/${issue.id}`} className="text-caption font-medium text-primary hover:underline">View Details →</Link>

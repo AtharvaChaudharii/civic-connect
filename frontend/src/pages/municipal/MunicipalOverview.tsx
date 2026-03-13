@@ -51,11 +51,11 @@ const CATEGORY_TO_DEPT: Record<string, string> = {
 };
 
 const deptIcons: Record<string, string> = {
-  Sanitation: "🗑️",
-  "Roads & Infrastructure": "🏗️",
-  "Water Supply": "💧",
-  Electrical: "💡",
-  Drainage: "🌊",
+  Sanitation: "SN",
+  "Roads & Infrastructure": "RI",
+  "Water Supply": "WS",
+  Electrical: "EL",
+  Drainage: "DR",
 };
 
 const MunicipalOverview = () => {
@@ -329,7 +329,7 @@ const MunicipalOverview = () => {
                           className="inline-block h-2.5 w-2.5 rounded-full"
                           style={{ background: deptColor }}
                         />
-                        <span className="text-xs">{deptIcons[dept.department] || "📋"}</span>
+                        <span className="text-xs font-mono font-semibold text-muted-foreground">{deptIcons[dept.department] || "--"}</span>
                         <span className="text-sm font-medium text-foreground">{dept.department}</span>
                       </div>
                     </TableCell>
@@ -352,11 +352,10 @@ const MunicipalOverview = () => {
                     </TableCell>
                     <TableCell>
                       <span
-                        className={`rounded-full px-2.5 py-0.5 text-xs font-medium ${
-                          healthy
+                        className={`rounded-full px-2.5 py-0.5 text-xs font-medium ${healthy
                             ? "bg-accent text-accent-foreground"
                             : "bg-destructive/10 text-destructive"
-                        }`}
+                          }`}
                       >
                         {healthy ? "Healthy" : "Warning"}
                       </span>

@@ -194,7 +194,7 @@ const CitizenDashboard = () => {
       <div className="mb-8 flex flex-col gap-6 sm:flex-row sm:items-end sm:justify-between">
         <div>
           <h1 className="text-3xl font-bold tracking-tight text-foreground sm:text-4xl">
-            {greeting()}, {user?.name?.split(" ")[0]}! 👋
+            {greeting()}, {user?.name?.split(" ")[0]}!
           </h1>
           <p className="mt-2 text-body text-muted-foreground">
             Here's what's happening in <span className="font-medium text-foreground">{user?.city || "your city"}</span> today.

@@ -9,7 +9,7 @@ const HeroSection = () => (
         {/* Left */}
         <div className="civic-fade-in">
           <span className="mb-4 inline-block rounded-full bg-accent px-4 py-1.5 text-label font-medium text-accent-foreground">
-            🏛️ Empowering Citizens
+            Empowering Citizens
           </span>
           <h1 className="mb-6 text-display text-foreground">
             Report Civic Issues.{" "}
