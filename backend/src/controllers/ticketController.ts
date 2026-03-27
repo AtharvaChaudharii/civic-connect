@@ -3,6 +3,7 @@ import prisma from "../config/db.js";
 import { ticketStatusSchema } from "../utils/validators.js";
 import { notifyIssueReporters } from "../services/notificationService.js";
 import { emitTicketStatusChanged } from "../services/socketEvents.js";
+import { sendGuestStatusEmail } from "../services/emailService.js";
 
 /**
  * GET /api/tickets
@@ -226,6 +227,23 @@ export async function updateTicketStatus(req: Request, res: Response): Promise<v
             `An issue you reported ${messageEnding}`,
             status === "Resolved" ? "success" : "info"
         );
+
+        // Email guest reporters (in background — never block response)
+        prisma.issuePost.findMany({
+            where: { consolidatedTicketId: id, guestEmail: { not: null } },
+            select: { guestEmail: true, title: true, location: true },
+        }).then((posts: { guestEmail: string | null; title: string; location: string }[]) => {
+            posts.forEach((post) => {
+                if (!post.guestEmail) return;
+                sendGuestStatusEmail({
+                    to: post.guestEmail,
+                    issueTitle: post.title,
+                    newStatus: status,
+                    location: post.location,
+                    resolutionComment: resolutionComment || ticket.resolutionComment,
+                }).catch(() => { });
+            });
+        }).catch(() => { });
 
         res.json({
             message: `Ticket status updated to ${status}.`,

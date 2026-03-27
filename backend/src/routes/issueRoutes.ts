@@ -10,12 +10,16 @@ import {
     getMapIssues,
     getComments,
 } from "../controllers/issueController.js";
+import { reportGuestIssue } from "../controllers/guestIssueController.js";
 import { authenticate, authorize } from "../middleware/auth.js";
 import { upload, uploadToCloudinary } from "../middleware/upload.js";
 
 const router = Router();
 
-// All issue routes require authentication
+// ── Guest route — NO auth required (must be before router.use(authenticate)) ──
+router.post("/guest", upload.single("image"), uploadToCloudinary, reportGuestIssue);
+
+// All remaining issue routes require authentication
 router.use(authenticate);
 
 // Citizen reports an issue

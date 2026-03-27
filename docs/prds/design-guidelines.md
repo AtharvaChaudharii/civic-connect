@@ -190,7 +190,13 @@ Microcopy Examples
 Onboarding:
 “Report issues in your city in seconds. We’ll route it to the right department.”
 
-Success (Issue Submitted):
+Guest Report Overlay:
+"No account needed. Enter your email and we'll keep you updated."
+
+Guest Success:
+"Your report has been submitted! We'll email you at <email> with updates as it gets resolved."
+
+Success (Issue Submitted — Citizen):
 “Your report has been sent to the Garbage Department of Pune.”
 
 Resolution:

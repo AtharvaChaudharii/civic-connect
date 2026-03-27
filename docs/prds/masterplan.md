@@ -44,6 +44,12 @@ Secondary Users
 
 User Roles
 
+0️⃣ Guest Reporter (No Account)
+	•	No login required
+	•	Quick Report via email — photo + category + auto location
+	•	Receives email updates when issue status changes (Ongoing / Resolved / Escalated)
+	•	Cannot comment, upvote, or view dashboard
+
 1️⃣ Citizen
 	•	Login required
 	•	Report issue (photo + category + auto location)
@@ -70,6 +76,12 @@ User Roles
 
 Core Features
 
+Guest Reporter Experience
+	•	⚡ Quick Report — no account needed
+	•	📧 Email-based tracking (status updates sent automatically)
+	•	📸 Photo + location reporting
+	•	Entry points: Navbar, QuickReportBanner (above "How It Works"), CTA section
+
 Citizen Experience
 	•	📸 Photo-based reporting
 	•	📍 Auto-location detection
@@ -77,7 +89,8 @@ Citizen Experience
 	•	🔎 Location & keyword search
 	•	👍 Upvote & comment
 	•	🔄 Real-time status updates
-	•	🔔 Notification on resolution
+	•	🔔 Real-time notifications via WebSockets
+	•	⭐ Impact Score tracking
 
 Smart System Logic
 	•	🌍 Auto city detection
@@ -110,10 +123,11 @@ Frontend
 	•	Clean UI control
 
 Backend
-	•	Node.js or Django
+	•	Node.js
 	•	Strong API ecosystem
 	•	Easy role-based logic
 	•	Good background job handling
+	•	Socket.io for real-time events
 
 Database
 	•	PostgreSQL
@@ -152,9 +166,10 @@ Department
 	•	city_id
 	•	category_type
 
-Issue_Post (Citizen-facing)
+Issue_Post (Citizen & Guest-facing)
 	•	id
-	•	user_id
+	•	user_id (nullable — null for guest reports)
+	•	guest_email (nullable — set for guest reports)
 	•	city_id
 	•	category
 	•	location (lat, lng)
@@ -207,7 +222,8 @@ A responsible, modern civic companion.
 ⸻
 
 Security & Compliance Notes
-	•	Mandatory login (prevents spam & abuse)
+	•	Guest reports require valid email (regex-validated server-side)
+	•	Guest endpoint rate-limited; no account data stored beyond email
 	•	Role-based access control (strict city isolation)
 	•	Secure image storage (signed URLs)
 	•	Escalation logs (non-editable audit trail)
@@ -226,8 +242,9 @@ MVP (Single Platform, Multi-City Enabled)
 	•	7-day escalation
 	•	Status tracking
 
-V1
-	•	Push/email notifications
+V1 (Implemented)
+	•	✅ Guest Quick Report (no login) with email status notifications
+	•	✅ Email service via Nodemailer (Gmail SMTP)
 	•	Advanced city analytics
 	•	Department performance metrics
 	•	Report export (CSV/PDF)
@@ -256,8 +273,9 @@ Mitigation:
 Risk: Citizen misuse/spam
 
 Mitigation:
-	•	Mandatory login.
-	•	Rate limits.
+	•	Mandatory login for full features.
+	•	Guest reports require email validation.
+	•	Rate limits on guest endpoint.
 	•	Report moderation tools.
 
 Risk: Political sensitivity

@@ -30,6 +30,7 @@ const ReportIssue = () => {
   const [error, setError] = useState("");
   const [responseMessage, setResponseMessage] = useState("");
   const [geoLoading, setGeoLoading] = useState(false);
+  const [gpsError, setGpsError] = useState("");
 
   /**
    * Reverse geocode lat/lng → human-readable address via OpenStreetMap Nominatim.
@@ -98,6 +99,10 @@ const ReportIssue = () => {
     }
   };
 
+  // ── All hooks must be above ANY early return ──
+  const canSubmit = imageFile && location && category && description && title && !submitting;
+  const pinCoords = useMemo<[number, number]>(() => [pinLat, pinLng], [pinLat, pinLng]);
+
   if (submitted) {
     const dept = category ? DEPARTMENT_MAP[category as IssueCategory] : "the relevant department";
     return (
@@ -116,8 +121,6 @@ const ReportIssue = () => {
       </div>
     );
   }
-
-  const canSubmit = imageFile && location && category && description && title && !submitting;
 
   return (
     <div className="civic-container civic-section">
@@ -169,25 +172,38 @@ const ReportIssue = () => {
             </div>
           </div>
           <div className="mb-3 overflow-hidden rounded-xl border">
-            <IssueMap issues={[]} singlePin={[pinLat, pinLng]} draggablePin onPinMove={(lat, lng) => { setPinLat(lat); setPinLng(lng); reverseGeocode(lat, lng); }} height="h-52" />
+            <IssueMap issues={[]} singlePin={pinCoords} draggablePin onPinMove={(lat, lng) => { setPinLat(lat); setPinLng(lng); reverseGeocode(lat, lng); }} height="h-52" />
           </div>
           <div className="flex items-center gap-2">
             <MapPin className="h-4 w-4 text-primary" />
-            <Input placeholder="Address auto-filled from GPS — you can edit" value={location} onChange={(e) => setLocation(e.target.value)} className="h-10 flex-1" />
+            <Input placeholder="Address auto-filled from GPS — you can edit" value={location} onChange={(e) => { setLocation(e.target.value); setGpsError(""); }} className="h-10 flex-1" />
             <Button variant="ghost" size="sm" className="text-primary text-caption font-medium gap-1" disabled={geoLoading} onClick={() => {
-              if (navigator.geolocation) {
-                setGeoLoading(true);
-                navigator.geolocation.getCurrentPosition(
-                  (pos) => {
-                    const { latitude, longitude } = pos.coords;
-                    setPinLat(latitude);
-                    setPinLng(longitude);
-                    reverseGeocode(latitude, longitude);
-                  },
-                  () => { setGeoLoading(false); },
-                  { enableHighAccuracy: true, timeout: 10000 }
-                );
+              if (!navigator.geolocation) {
+                setGpsError("Geolocation is not supported by your browser.");
+                return;
               }
+              setGeoLoading(true);
+              setGpsError("");
+              navigator.geolocation.getCurrentPosition(
+                (pos) => {
+                  const { latitude, longitude } = pos.coords;
+                  setPinLat(latitude);
+                  setPinLng(longitude);
+                  console.log(latitude, longitude);
+                  reverseGeocode(latitude, longitude);
+                },
+                (err) => {
+                  setGeoLoading(false);
+                  if (err.code === err.TIMEOUT) {
+                    setGpsError("GPS timed out. Try again or type your address manually.");
+                  } else if (err.code === err.PERMISSION_DENIED) {
+                    setGpsError("Location access denied. Please allow it in your browser settings.");
+                  } else {
+                    setGpsError("Could not get your location. Type your address manually.");
+                  }
+                },
+                { maximumAge: 60000, timeout: 15000 }
+              );
             }}>
               {geoLoading ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : null}
               USE GPS
@@ -195,8 +211,11 @@ const ReportIssue = () => {
           </div>
           {geoLoading && (
             <p className="mt-1.5 text-label text-muted-foreground flex items-center gap-1">
-              <Loader2 className="h-3 w-3 animate-spin" /> Fetching address…
+              <Loader2 className="h-3 w-3 animate-spin" /> Getting your location…
             </p>
+          )}
+          {gpsError && (
+            <p className="mt-1.5 text-label text-destructive">{gpsError}</p>
           )}
         </div>
 

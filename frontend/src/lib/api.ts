@@ -98,6 +98,18 @@ export const issues = {
             body: formData,
         }),
 
+    reportGuest: (formData: FormData) => {
+        // Unauthenticated — use plain fetch, no Authorization header
+        return fetch(`${API_BASE}/issues/guest`, { method: "POST", body: formData })
+            .then(async (res) => {
+                if (!res.ok) {
+                    const body = await res.json().catch(() => ({ error: res.statusText }));
+                    throw new ApiError(body.error || "Something went wrong.", res.status);
+                }
+                return res.json() as Promise<{ message: string; issue: ApiIssue; isDuplicate: boolean }>;
+            });
+    },
+
     upvote: (id: string) =>
         request<{ message: string; upvoted: boolean }>(`/issues/${id}/upvote`, {
             method: "POST",

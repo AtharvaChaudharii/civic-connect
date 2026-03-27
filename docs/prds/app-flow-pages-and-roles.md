@@ -8,6 +8,7 @@ Public
 	•	Landing Page
 	•	Login
 	•	Register
+	•	Guest Report Page (/report-issue-guest)
 
 ⸻
 
@@ -41,9 +42,16 @@ Landing Page
 
 Explain purpose. Build civic trust. Clear “Report Issue” CTA.
 
+Entry points for guest reporting:
+	•	Navbar: "Quick Report" outline button (left of Login)
+	•	QuickReportBanner: wide strip between Hero and "How It Works"
+	•	CTA Section: "Quick Report — No Sign-up" beside the primary CTA
+
+All three open a QuickReportOverlay (email capture modal). On valid email → navigate to /report-issue-guest.
+
 Login / Register
 
-Secure access. Mandatory for all roles.
+Secure access. Mandatory for full citizen / department / municipal features.
 
 ⸻
 
@@ -61,12 +69,26 @@ Immediate awareness. Reduce friction.
 
 ⸻
 
-Report Issue
+Report Issue (Authenticated Citizen)
 
 Upload photo. Select category. Confirm location. Submit.
 
 Purpose:
 Fast, clear civic reporting.
+
+⸻
+
+Guest Report Page (/report-issue-guest)
+
+Same form as Report Issue but:
+	•	No login required — email captured upfront via overlay
+	•	Shows "Reporting as guest: <email>" in the navbar
+	•	Submits to POST /api/issues/guest (unauthenticated endpoint)
+	•	On success: shows inline success overlay with issue reference
+	•	Guest receives email updates on status changes
+
+Purpose:
+Zero-friction civic reporting for users who don't want to create an account.
 
 ⸻
 
@@ -99,7 +121,8 @@ Discover issues city-wide.
 Profile
 
 User’s reported issues.
-Notification settings.
+Upvoted Issues tracking.
+Impact Score metrics.
 
 Purpose:
 Personal accountability view.
@@ -202,6 +225,19 @@ User Roles & Access Levels
 
 ⸻
 
+0️⃣ Guest Reporter
+
+Can:
+	•	Submit Quick Report (no account)
+	•	Receive email status updates (Ongoing / Resolved / Escalated)
+
+Cannot:
+	•	Comment or upvote
+	•	View issue feed or dashboards
+	•	Change status
+
+⸻
+
 1️⃣ Citizen
 
 Can:
@@ -252,6 +288,16 @@ Cannot:
 ⸻
 
 Primary User Journeys (Max 3 Steps Each)
+
+⸻
+
+Guest — Quick Report
+	1.	Click "Quick Report" (navbar / banner / CTA)
+	2.	Enter email → overlay closes → navigate to /report-issue-guest
+	3.	Upload photo + category + location → Submit
+
+Outcome:
+Issue created. Guest receives email updates on status changes.
 
 ⸻
 

@@ -5,8 +5,10 @@ import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { BrowserRouter, Routes, Route } from "react-router-dom";
 import { AuthProvider } from "@/contexts/AuthContext";
 import { SocketProvider } from "@/contexts/SocketContext";
+import { GuestReportProvider } from "@/contexts/GuestReportContext";
 import ProtectedRoute from "@/components/ProtectedRoute";
 import DashboardRouter from "@/components/DashboardRouter";
+import GuestReportPage from "@/pages/GuestReportPage";
 
 // Public pages
 import Index from "./pages/Index";
@@ -45,6 +47,7 @@ const queryClient = new QueryClient();
 const App = () => (
   <QueryClientProvider client={queryClient}>
     <AuthProvider>
+      <GuestReportProvider>
       <SocketProvider>
       <TooltipProvider>
         <Toaster />
@@ -55,6 +58,9 @@ const App = () => (
             <Route path="/" element={<Index />} />
             <Route path="/login" element={<Login />} />
             <Route path="/register" element={<Register />} />
+
+            {/* Guest report flow — no auth required */}
+            <Route path="/report-issue-guest" element={<GuestReportPage />} />
 
             {/* Dashboard router — redirects by role */}
             <Route
@@ -121,6 +127,7 @@ const App = () => (
         </BrowserRouter>
       </TooltipProvider>
       </SocketProvider>
+      </GuestReportProvider>
     </AuthProvider>
   </QueryClientProvider>
 );

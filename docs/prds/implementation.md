@@ -84,6 +84,31 @@ Checkpoint:
 
 ⸻
 
+Phase 2.5 — Guest Quick Report Flow (Implemented)
+
+Overview:
+Allow anonymous users to report issues without creating an account.
+
+Frontend:
+	•	Three entry points on landing page: Navbar button, QuickReportBanner (between Hero and How It Works), CTA section button
+	•	QuickReportOverlay: modal that captures guest email before proceeding
+	•	GuestReportContext: stores guest email in React state across the session
+	•	/report-issue-guest: dedicated guest report page (same form as authenticated Report Issue)
+	•	On success: inline success overlay inside the guest page
+
+Backend:
+	•	POST /api/issues/guest: unauthenticated endpoint, no JWT required
+	•	Validates guest_email (regex check server-side)
+	•	Stores guestEmail on IssuePost (Prisma schema field: String?)
+	•	All same business logic as authenticated endpoint: duplicate detection, department assignment, city lookup
+
+Checkpoint:
+	•	Guest can submit without any account
+	•	401 does not occur on guest endpoint
+	•	guestEmail stored in IssuePost table
+
+⸻
+
 Phase 3 — Issue Viewing & Interaction (Week 4)
 
 Citizen Features
@@ -189,14 +214,19 @@ Checkpoint:
 ⸻
 
 Phase 7 — Notifications (Week 8)
+
+In-app (Registered Reporters):
 	•	Issue submitted confirmation
 	•	Status changed notification
 	•	Escalation notification
 	•	Resolution proof update notification
+	•	Channels: Real-time in-app via Socket.io
 
-Channels:
-	•	Email first
-	•	Push (V1)
+Email (Guest Reporters) — Implemented:
+	•	Nodemailer + Gmail SMTP (GMAIL_USER + GMAIL_APP_PASSWORD env vars)
+	•	Triggered automatically when ticket status changes (Ongoing / Resolved / Escalated)
+	•	Styled HTML email with issue title, location, status badge, resolution note
+	•	Fails silently if env vars not configured (never breaks ticket update API)
 
 ⸻
 
@@ -208,6 +238,9 @@ Critical Tests
 	•	Escalation reliability test
 	•	Department cannot bypass proof upload
 	•	Load test on image uploads
+	•	Guest endpoint returns 400 on missing/invalid email
+	•	Guest endpoint returns 401 never (no auth check)
+	•	Email sends on each status change for guest-reported issues
 
 Abuse Protection
 	•	Rate limiting per user
