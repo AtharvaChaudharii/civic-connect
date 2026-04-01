@@ -1,22 +1,16 @@
 import nodemailer from "nodemailer";
 import { env } from "../config/env.js";
 
-/**
- * Lazily-created nodemailer transporter.
- * Uses Gmail's SMTP via the GMAIL_USER / GMAIL_APP_PASSWORD env vars.
- * To enable: generate a Gmail App Password at https://myaccount.google.com/apppasswords
- * (requires 2-Step Verification on the account).
- */
 let transporter: nodemailer.Transporter | null = null;
 
 function getTransporter(): nodemailer.Transporter | null {
     if (transporter) return transporter;
 
-    const user = (env as any).GMAIL_USER;
-    const pass = (env as any).GMAIL_APP_PASSWORD;
+    const user = env.GMAIL_USER;
+    const pass = env.GMAIL_APP_PASSWORD;
 
     if (!user || !pass) {
-        console.warn("[Email] GMAIL_USER or GMAIL_APP_PASSWORD not set — guest email notifications disabled.");
+        console.warn("[Email] GMAIL_USER or GMAIL_APP_PASSWORD not set — email disabled.");
         return null;
     }
 
@@ -25,12 +19,12 @@ function getTransporter(): nodemailer.Transporter | null {
         auth: { user, pass },
     });
 
+    console.log(`[Email] Transporter ready for ${user}`);
     return transporter;
 }
 
-/**
- * Send a status-update email to a guest reporter.
- */
+// ── Guest status update email ──
+
 export async function sendGuestStatusEmail({
     to,
     issueTitle,
@@ -45,7 +39,7 @@ export async function sendGuestStatusEmail({
     resolutionComment?: string | null;
 }): Promise<void> {
     const t = getTransporter();
-    if (!t) return; // email not configured — skip silently
+    if (!t) return;
 
     const statusLabels: Record<string, { emoji: string; line: string; color: string }> = {
         Ongoing:  { emoji: "🔧", line: "Your reported issue is now being worked on by the department.", color: "#3b82f6" },
@@ -60,21 +54,17 @@ export async function sendGuestStatusEmail({
         color: "#6b7280",
     };
 
-    const html = `
-<!DOCTYPE html>
+    const html = `<!DOCTYPE html>
 <html>
 <head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"></head>
 <body style="margin:0;padding:0;background:#f4f7f6;font-family:Arial,sans-serif">
   <table width="100%" cellpadding="0" cellspacing="0" style="background:#f4f7f6;padding:32px 16px">
     <tr><td align="center">
       <table width="560" cellpadding="0" cellspacing="0" style="background:#fff;border-radius:12px;overflow:hidden;box-shadow:0 4px 24px rgba(0,0,0,.08)">
-        <!-- Header -->
         <tr><td style="background:#1E7F5C;padding:28px 32px">
           <p style="margin:0;color:#fff;font-size:22px;font-weight:700">CivicTrack</p>
           <p style="margin:4px 0 0;color:rgba(255,255,255,.8);font-size:13px">Civic Issue Tracking Platform</p>
         </td></tr>
-
-        <!-- Status badge -->
         <tr><td style="padding:28px 32px 0">
           <table cellpadding="0" cellspacing="0">
             <tr><td style="background:${meta.color};color:#fff;border-radius:999px;padding:4px 14px;font-size:13px;font-weight:600">
@@ -84,8 +74,6 @@ export async function sendGuestStatusEmail({
           <p style="margin:16px 0 8px;font-size:18px;font-weight:700;color:#111">${meta.line}</p>
           <p style="margin:0;font-size:14px;color:#6b7280">Here's an update on the issue you reported.</p>
         </td></tr>
-
-        <!-- Issue details -->
         <tr><td style="padding:20px 32px">
           <table width="100%" cellpadding="0" cellspacing="0" style="background:#f9fafb;border-radius:8px;padding:16px">
             <tr><td>
@@ -100,8 +88,6 @@ export async function sendGuestStatusEmail({
             </td></tr>
           </table>
         </td></tr>
-
-        <!-- Footer -->
         <tr><td style="padding:20px 32px 28px;border-top:1px solid #f0f0f0">
           <p style="margin:0;font-size:12px;color:#9ca3af;text-align:center">
             You received this email because you submitted a report on CivicTrack.<br>
@@ -116,7 +102,7 @@ export async function sendGuestStatusEmail({
 
     try {
         await t.sendMail({
-            from: `"CivicTrack" <${(env as any).GMAIL_USER}>`,
+            from: `"CivicTrack" <${env.GMAIL_USER}>`,
             to,
             subject: `${meta.emoji} Issue Update: "${issueTitle}" is now ${newStatus}`,
             html,
@@ -124,6 +110,57 @@ export async function sendGuestStatusEmail({
         console.log(`[Email] Status update sent to ${to}`);
     } catch (err) {
         console.error("[Email] Failed to send status update:", err);
-        // Don't rethrow — email failure should never break ticket update
+    }
+}
+
+// ── OTP email for password reset ──
+
+export async function sendOtpEmail(to: string, otp: string): Promise<void> {
+    const t = getTransporter();
+    if (!t) {
+        console.error("[Email] Cannot send OTP — transporter not configured");
+        return;
+    }
+
+    const html = `<!DOCTYPE html>
+<html>
+<head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"></head>
+<body style="margin:0;padding:0;background:#f4f7f6;font-family:Arial,sans-serif">
+  <table width="100%" cellpadding="0" cellspacing="0" style="background:#f4f7f6;padding:32px 16px">
+    <tr><td align="center">
+      <table width="560" cellpadding="0" cellspacing="0" style="background:#fff;border-radius:12px;overflow:hidden;box-shadow:0 4px 24px rgba(0,0,0,.08)">
+        <tr><td style="background:#1E7F5C;padding:28px 32px">
+          <p style="margin:0;color:#fff;font-size:22px;font-weight:700">CivicTrack</p>
+          <p style="margin:4px 0 0;color:rgba(255,255,255,.8);font-size:13px">Password Reset</p>
+        </td></tr>
+        <tr><td style="padding:32px">
+          <p style="margin:0 0 8px;font-size:18px;font-weight:700;color:#111">Reset Your Password</p>
+          <p style="margin:0 0 24px;font-size:14px;color:#6b7280">Use the OTP below to reset your password. It expires in 10 minutes.</p>
+          <div style="background:#f0fdf4;border:2px dashed #1E7F5C;border-radius:12px;padding:24px;text-align:center;margin-bottom:24px">
+            <p style="margin:0 0 4px;font-size:12px;letter-spacing:.08em;color:#6b7280;text-transform:uppercase">Your One-Time Password</p>
+            <p style="margin:0;font-size:40px;font-weight:800;letter-spacing:12px;color:#1E7F5C">${otp}</p>
+          </div>
+          <p style="margin:0;font-size:13px;color:#9ca3af">If you didn't request a password reset, ignore this email. Your account is safe.</p>
+        </td></tr>
+        <tr><td style="padding:16px 32px 28px;border-top:1px solid #f0f0f0">
+          <p style="margin:0;font-size:12px;color:#9ca3af;text-align:center">© 2026 CivicTrack. All rights reserved.</p>
+        </td></tr>
+      </table>
+    </td></tr>
+  </table>
+</body>
+</html>`;
+
+    try {
+        await t.sendMail({
+            from: `"CivicTrack" <${env.GMAIL_USER}>`,
+            to,
+            subject: `🔐 Your CivicTrack Password Reset OTP: ${otp}`,
+            html,
+        });
+        console.log(`[Email] OTP sent to ${to}`);
+    } catch (err) {
+        console.error("[Email] Failed to send OTP:", err);
+        throw err; // rethrow so controller can handle it
     }
 }

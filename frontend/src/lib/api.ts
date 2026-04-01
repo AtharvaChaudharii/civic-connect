@@ -35,7 +35,7 @@ async function request<T>(
 ): Promise<T> {
     const url = `${API_BASE}${path}`;
     const headers: Record<string, string> = {
-        ...authHeaders(),
+        ...(authHeaders() as Record<string, string>),
         ...(options.headers as Record<string, string> || {}),
     };
 
@@ -73,6 +73,24 @@ export const auth = {
         }),
 
     me: () => request<{ user: ApiUser }>("/auth/me"),
+
+    forgotPassword: (email: string) =>
+        request<{ message: string }>("/auth/forgot-password", {
+            method: "POST",
+            body: JSON.stringify({ email }),
+        }),
+
+    verifyOtp: (email: string, otp: string) =>
+        request<{ message: string; resetToken: string }>("/auth/verify-otp", {
+            method: "POST",
+            body: JSON.stringify({ email, otp }),
+        }),
+
+    resetPassword: (email: string, otp: string, newPassword: string) =>
+        request<{ message: string }>("/auth/reset-password", {
+            method: "POST",
+            body: JSON.stringify({ email, otp, newPassword }),
+        }),
 };
 
 // ── Issues ──

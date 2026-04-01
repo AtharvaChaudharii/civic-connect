@@ -53,6 +53,8 @@ model User {
   password     String
   role         UserRole    @default(citizen)
   avatar       String?
+  otpCode      String?     // 6-digit OTP for password reset
+  otpExpiresAt DateTime?   // OTP expiry (10 min from issue)
   createdAt    DateTime    @default(now())
   updatedAt    DateTime    @updatedAt
 

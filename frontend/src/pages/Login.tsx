@@ -31,6 +31,11 @@ const Login = () => {
     }
   };
 
+  const handleForgotPassword = () => {
+    // Navigate to forgot-password, passing email via state so it pre-fills
+    navigate("/forgot-password", { state: { email } });
+  };
+
   return (
     <div className="flex min-h-screen flex-col bg-background">
       {/* Top bar */}
@@ -83,7 +88,13 @@ const Login = () => {
             <div className="space-y-2">
               <div className="flex items-center justify-between">
                 <Label htmlFor="password">Password</Label>
-                <a href="#" className="text-caption font-medium text-primary hover:underline">Forgot password?</a>
+                <button
+                  type="button"
+                  onClick={handleForgotPassword}
+                  className="text-caption font-medium text-primary hover:underline"
+                >
+                  Forgot password?
+                </button>
               </div>
               <div className="relative">
                 <Lock className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
@@ -111,12 +122,31 @@ const Login = () => {
           </p>
 
           {/* Demo accounts */}
-          <div className="mt-6 rounded-lg bg-muted p-4">
-            <p className="mb-2 text-label font-semibold text-foreground">Demo Accounts</p>
-            <div className="space-y-1 text-label text-muted-foreground">
-              <p><span className="font-medium">Citizen:</span> citizen@civictrack.in / password123</p>
-              <p><span className="font-medium">Department:</span> sanitation@pune.gov.in / password123</p>
-              <p><span className="font-medium">Municipal:</span> admin@pmc.gov.in / password123</p>
+          <div className="mt-6 rounded-lg border bg-muted/50 p-4">
+            <p className="mb-3 text-label font-semibold text-foreground">Demo Accounts <span className="font-normal text-muted-foreground">(click to fill)</span></p>
+            <div className="space-y-1">
+              {[
+                { label: "Citizen",                      email: "citizen@civictrack.in",   color: "text-emerald-600" },
+                { label: "Sanitation Dept",              email: "sanitation@pune.gov.in",  color: "text-orange-500" },
+                { label: "Roads & Infra Dept",           email: "roads@pune.gov.in",       color: "text-red-500" },
+                { label: "Water Supply Dept",            email: "water@pune.gov.in",       color: "text-blue-500" },
+                { label: "Electrical Dept",              email: "electrical@pune.gov.in",  color: "text-purple-500" },
+                { label: "Drainage Dept",                email: "drainage@pune.gov.in",    color: "text-cyan-600" },
+                { label: "Roads & Infra (Footpath) Dept",email: "footpath@pune.gov.in",   color: "text-pink-500" },
+                { label: "General Dept",                 email: "general@pune.gov.in",     color: "text-slate-500" },
+                { label: "Municipal Admin",              email: "admin@pmc.gov.in",        color: "text-violet-600" },
+              ].map((acc) => (
+                <button
+                  key={acc.email}
+                  type="button"
+                  onClick={() => { setEmail(acc.email); setPassword("password123"); }}
+                  className="flex w-full items-center justify-between rounded px-2 py-1.5 text-left text-label hover:bg-accent transition-colors"
+                >
+                  <span className={`font-medium ${acc.color}`}>{acc.label}</span>
+                  <span className="text-muted-foreground">{acc.email}</span>
+                </button>
+              ))}
+              <p className="mt-2 px-2 text-label text-muted-foreground/70">Password for all: <span className="font-mono font-medium">password123</span></p>
             </div>
           </div>
         </div>
