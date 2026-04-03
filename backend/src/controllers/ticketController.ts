@@ -3,7 +3,7 @@ import prisma from "../config/db.js";
 import { ticketStatusSchema } from "../utils/validators.js";
 import { notifyIssueReporters } from "../services/notificationService.js";
 import { emitTicketStatusChanged } from "../services/socketEvents.js";
-import { sendGuestStatusEmail } from "../services/emailService.js";
+import { sendStatusUpdateEmail } from "../services/emailService.js";
 
 /**
  * GET /api/tickets
@@ -228,6 +228,9 @@ export async function updateTicketStatus(req: Request, res: Response): Promise<v
             status === "Resolved" ? "success" : "info"
         );
 
+        // The proof image to include in emails (newly uploaded or existing)
+        const resolvedProofImage = proofImage || ticket.proofImage || null;
+
         // Email guest reporters (in background — never block response)
         prisma.issuePost.findMany({
             where: { consolidatedTicketId: id, guestEmail: { not: null } },
@@ -235,12 +238,39 @@ export async function updateTicketStatus(req: Request, res: Response): Promise<v
         }).then((posts: { guestEmail: string | null; title: string; location: string }[]) => {
             posts.forEach((post) => {
                 if (!post.guestEmail) return;
-                sendGuestStatusEmail({
+                sendStatusUpdateEmail({
                     to: post.guestEmail,
                     issueTitle: post.title,
                     newStatus: status,
                     location: post.location,
                     resolutionComment: resolutionComment || ticket.resolutionComment,
+                    proofImageUrl: status === "Resolved" ? resolvedProofImage : null,
+                }).catch(() => { });
+            });
+        }).catch(() => { });
+
+        // Email logged-in citizen reporters (in background — never block response)
+        // Only citizens receive emails — departments are excluded.
+        prisma.issuePost.findMany({
+            where: {
+                consolidatedTicketId: id,
+                reportedById: { not: null },
+            },
+            select: {
+                title: true,
+                location: true,
+                reportedBy: { select: { email: true, role: true } },
+            },
+        }).then((posts) => {
+            posts.forEach((post) => {
+                if (!post.reportedBy || post.reportedBy.role !== "citizen") return;
+                sendStatusUpdateEmail({
+                    to: post.reportedBy.email,
+                    issueTitle: post.title,
+                    newStatus: status,
+                    location: post.location,
+                    resolutionComment: resolutionComment || ticket.resolutionComment,
+                    proofImageUrl: status === "Resolved" ? resolvedProofImage : null,
                 }).catch(() => { });
             });
         }).catch(() => { });

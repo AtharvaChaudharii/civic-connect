@@ -24,6 +24,7 @@ export async function createNotification(
 /**
  * Notify all reporters of an issue post about a status change.
  * Optimised: single createMany instead of N individual creates.
+ * Guest posts (reportedById === null) are skipped — they have no user to notify.
  */
 export async function notifyIssueReporters(
     consolidatedTicketId: string,
@@ -37,11 +38,16 @@ export async function notifyIssueReporters(
         select: { id: true, reportedById: true },
     });
 
-    if (posts.length === 0) return;
+    // Filter out guest posts — they have no logged-in user to send in-app notifications to
+    const authenticatedPosts = posts.filter(
+        (post): post is { id: string; reportedById: string } => post.reportedById !== null
+    );
+
+    if (authenticatedPosts.length === 0) return;
 
     // Bulk insert — single round-trip to DB
     const result = await prisma.notification.createMany({
-        data: posts.map((post: { id: string; reportedById: string }) => ({
+        data: authenticatedPosts.map((post) => ({
             userId: post.reportedById,
             title,
             message,
@@ -53,7 +59,7 @@ export async function notifyIssueReporters(
 
     // Real-time push to all reporters
     emitNotifications(
-        posts.map((p: { reportedById: string }) => p.reportedById),
+        authenticatedPosts.map((p) => p.reportedById),
         { title, message, type }
     );
 

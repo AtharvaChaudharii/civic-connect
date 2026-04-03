@@ -11,8 +11,12 @@ import {
 } from "@/components/ui/select";
 import { Upload, MapPin, CheckCircle, Camera, Send, Info, Loader2 } from "lucide-react";
 import IssueMap from "@/components/IssueMap";
-import type { IssueCategory } from "@/types";
+import type { IssueCategory, Issue } from "@/types";
 import { CATEGORY_LABELS, DEPARTMENT_MAP, ALL_CATEGORIES } from "@/types";
+
+// Stable reference — prevents IssueMap from re-creating the Leaflet map
+// every time a parent state change (e.g. typing) triggers a re-render.
+const EMPTY_ISSUES: Issue[] = [];
 
 const ReportIssue = () => {
   const { user } = useAuth();
@@ -54,6 +58,99 @@ const ReportIssue = () => {
       setGeoLoading(false);
     }
   }, []);
+
+  /**
+   * IP-based geolocation fallback.
+   * Used when browser GPS fails (e.g. desktop Mac without GPS chip).
+   * Gives city-level accuracy — user can drag the pin to refine.
+   */
+  const ipGeoFallback = useCallback(async () => {
+    try {
+      const res = await fetch("https://ipapi.co/json/");
+      if (!res.ok) throw new Error("IP lookup failed");
+      const data = await res.json();
+      if (data?.latitude && data?.longitude) {
+        setPinLat(data.latitude);
+        setPinLng(data.longitude);
+        reverseGeocode(data.latitude, data.longitude);
+        return;
+      }
+    } catch {
+      // IP lookup failed — keep default Pune coordinates
+    }
+    // If IP geolocation also failed, reverse-geocode the default pin
+    reverseGeocode(18.5204, 73.8567);
+    setGeoLoading(false);
+  }, [reverseGeocode]);
+
+  /**
+   * Attempt to get GPS position.
+   * 3-tier strategy:
+   *   1. High-accuracy GPS (hardware chip)
+   *   2. Low-accuracy GPS (Wi-Fi / cell tower)
+   *   3. IP-based geolocation (city-level, no permissions needed)
+   */
+  const requestGpsPosition = useCallback(() => {
+    if (!navigator.geolocation) {
+      // No browser support at all — go straight to IP fallback
+      setGeoLoading(true);
+      ipGeoFallback();
+      return;
+    }
+    setGeoLoading(true);
+    setGpsError("");
+
+    const onSuccess = (pos: GeolocationPosition) => {
+      const { latitude, longitude } = pos.coords;
+      setPinLat(latitude);
+      setPinLng(longitude);
+      reverseGeocode(latitude, longitude);
+    };
+
+    const onIpFallback = () => {
+      // Both GPS attempts failed — use IP geolocation
+      ipGeoFallback();
+    };
+
+    const onLowAccuracyFallback = () => {
+      navigator.geolocation.getCurrentPosition(
+        onSuccess,
+        () => {
+          // Low-accuracy also failed → IP fallback
+          onIpFallback();
+        },
+        { enableHighAccuracy: false, maximumAge: 120_000, timeout: 15_000 }
+      );
+    };
+
+    // High-accuracy attempt first
+    navigator.geolocation.getCurrentPosition(
+      onSuccess,
+      (err) => {
+        if (err.code === err.PERMISSION_DENIED) {
+          // User denied — use IP fallback silently
+          onIpFallback();
+        } else {
+          // POSITION_UNAVAILABLE or TIMEOUT → retry with low accuracy
+          onLowAccuracyFallback();
+        }
+      },
+      { enableHighAccuracy: true, maximumAge: 60_000, timeout: 8_000 }
+    );
+  }, [reverseGeocode, ipGeoFallback]);
+
+  // ── Auto-detect location on mount ──
+  useEffect(() => {
+    requestGpsPosition();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+
+  // Stable callback — avoids giving IssueMap a new function ref each render
+  const handlePinMove = useCallback((lat: number, lng: number) => {
+    setPinLat(lat);
+    setPinLng(lng);
+    reverseGeocode(lat, lng);
+  }, [reverseGeocode]);
 
   // Duplicate detection: fetch nearby issues with same category
   const [nearbyDuplicates, setNearbyDuplicates] = useState<ApiIssue[]>([]);
@@ -172,39 +269,12 @@ const ReportIssue = () => {
             </div>
           </div>
           <div className="mb-3 overflow-hidden rounded-xl border">
-            <IssueMap issues={[]} singlePin={pinCoords} draggablePin onPinMove={(lat, lng) => { setPinLat(lat); setPinLng(lng); reverseGeocode(lat, lng); }} height="h-52" />
+            <IssueMap issues={EMPTY_ISSUES} singlePin={pinCoords} draggablePin onPinMove={handlePinMove} height="h-52" />
           </div>
           <div className="flex items-center gap-2">
             <MapPin className="h-4 w-4 text-primary" />
             <Input placeholder="Address auto-filled from GPS — you can edit" value={location} onChange={(e) => { setLocation(e.target.value); setGpsError(""); }} className="h-10 flex-1" />
-            <Button variant="ghost" size="sm" className="text-primary text-caption font-medium gap-1" disabled={geoLoading} onClick={() => {
-              if (!navigator.geolocation) {
-                setGpsError("Geolocation is not supported by your browser.");
-                return;
-              }
-              setGeoLoading(true);
-              setGpsError("");
-              navigator.geolocation.getCurrentPosition(
-                (pos) => {
-                  const { latitude, longitude } = pos.coords;
-                  setPinLat(latitude);
-                  setPinLng(longitude);
-                  console.log(latitude, longitude);
-                  reverseGeocode(latitude, longitude);
-                },
-                (err) => {
-                  setGeoLoading(false);
-                  if (err.code === err.TIMEOUT) {
-                    setGpsError("GPS timed out. Try again or type your address manually.");
-                  } else if (err.code === err.PERMISSION_DENIED) {
-                    setGpsError("Location access denied. Please allow it in your browser settings.");
-                  } else {
-                    setGpsError("Could not get your location. Type your address manually.");
-                  }
-                },
-                { maximumAge: 60000, timeout: 15000 }
-              );
-            }}>
+            <Button variant="ghost" size="sm" className="text-primary text-caption font-medium gap-1" disabled={geoLoading} onClick={requestGpsPosition}>
               {geoLoading ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : null}
               USE GPS
             </Button>

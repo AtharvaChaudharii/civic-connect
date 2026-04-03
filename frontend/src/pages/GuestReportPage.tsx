@@ -11,8 +11,11 @@ import {
 } from "@/components/ui/select";
 import { CheckCircle, Camera, Send, MapPin, Info, Loader2, Home } from "lucide-react";
 import IssueMap from "@/components/IssueMap";
-import type { IssueCategory } from "@/types";
+import type { IssueCategory, Issue } from "@/types";
 import { CATEGORY_LABELS, DEPARTMENT_MAP, ALL_CATEGORIES } from "@/types";
+
+// Stable reference — prevents IssueMap from re-creating the Leaflet map
+const EMPTY_ISSUES: Issue[] = [];
 
 // ── Success Overlay ────────────────────────────────────────────────
 interface SuccessOverlayProps {
@@ -130,6 +133,91 @@ const GuestReportPage = () => {
     }
   }, []);
 
+  /**
+   * IP-based geolocation fallback.
+   * Used when browser GPS fails (e.g. desktop Mac without GPS chip).
+   */
+  const ipGeoFallback = useCallback(async () => {
+    try {
+      const res = await fetch("https://ipapi.co/json/");
+      if (!res.ok) throw new Error("IP lookup failed");
+      const data = await res.json();
+      if (data?.latitude && data?.longitude) {
+        setPinLat(data.latitude);
+        setPinLng(data.longitude);
+        reverseGeocode(data.latitude, data.longitude);
+        return;
+      }
+    } catch {
+      // IP lookup failed — keep default Pune coordinates
+    }
+    reverseGeocode(18.5204, 73.8567);
+    setGeoLoading(false);
+  }, [reverseGeocode]);
+
+  /**
+   * Attempt to get GPS position.
+   * 3-tier strategy:
+   *   1. High-accuracy GPS (hardware chip)
+   *   2. Low-accuracy GPS (Wi-Fi / cell tower)
+   *   3. IP-based geolocation (city-level, no permissions needed)
+   */
+  const requestGpsPosition = useCallback(() => {
+    if (!navigator.geolocation) {
+      setGeoLoading(true);
+      ipGeoFallback();
+      return;
+    }
+    setGeoLoading(true);
+    setGpsError("");
+
+    const onSuccess = (pos: GeolocationPosition) => {
+      const { latitude, longitude } = pos.coords;
+      setPinLat(latitude);
+      setPinLng(longitude);
+      reverseGeocode(latitude, longitude);
+    };
+
+    const onIpFallback = () => {
+      ipGeoFallback();
+    };
+
+    const onLowAccuracyFallback = () => {
+      navigator.geolocation.getCurrentPosition(
+        onSuccess,
+        () => {
+          onIpFallback();
+        },
+        { enableHighAccuracy: false, maximumAge: 120_000, timeout: 15_000 }
+      );
+    };
+
+    navigator.geolocation.getCurrentPosition(
+      onSuccess,
+      (err) => {
+        if (err.code === err.PERMISSION_DENIED) {
+          onIpFallback();
+        } else {
+          onLowAccuracyFallback();
+        }
+      },
+      { enableHighAccuracy: true, maximumAge: 60_000, timeout: 8_000 }
+    );
+  }, [reverseGeocode, ipGeoFallback]);
+
+  // ── Auto-detect location on mount ──
+  useEffect(() => {
+    requestGpsPosition();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+
+  // Stable callback — avoids giving IssueMap a new function ref each render
+  const handlePinMove = useCallback((lat: number, lng: number) => {
+    setPinLat(lat);
+    setPinLng(lng);
+    reverseGeocode(lat, lng);
+  }, [reverseGeocode]);
+
   // Duplicate detection
   useEffect(() => {
     if (!category) { setNearbyDuplicates([]); return; }
@@ -245,10 +333,10 @@ const GuestReportPage = () => {
             </div>
             <div className="mb-3 overflow-hidden rounded-xl border">
               <IssueMap
-                issues={[]}
+                issues={EMPTY_ISSUES}
                 singlePin={pinCoords}
                 draggablePin
-                onPinMove={(lat, lng) => { setPinLat(lat); setPinLng(lng); reverseGeocode(lat, lng); }}
+                onPinMove={handlePinMove}
                 height="h-52"
               />
             </div>
@@ -265,33 +353,7 @@ const GuestReportPage = () => {
                 size="sm"
                 className="text-primary text-caption font-medium gap-1"
                 disabled={geoLoading}
-                onClick={() => {
-                  if (!navigator.geolocation) {
-                    setGpsError("Geolocation is not supported by your browser.");
-                    return;
-                  }
-                  setGeoLoading(true);
-                  setGpsError("");
-                  navigator.geolocation.getCurrentPosition(
-                    (pos) => {
-                      const { latitude, longitude } = pos.coords;
-                      setPinLat(latitude);
-                      setPinLng(longitude);
-                      reverseGeocode(latitude, longitude);
-                    },
-                    (err) => {
-                      setGeoLoading(false);
-                      if (err.code === err.TIMEOUT) {
-                        setGpsError("GPS timed out. Try again or type your address manually.");
-                      } else if (err.code === err.PERMISSION_DENIED) {
-                        setGpsError("Location access denied. Please allow it in your browser settings.");
-                      } else {
-                        setGpsError("Could not get your location. Type your address manually.");
-                      }
-                    },
-                    { maximumAge: 60000, timeout: 15000 }
-                  );
-                }}
+                onClick={requestGpsPosition}
               >
                 {geoLoading ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : null}
                 USE GPS

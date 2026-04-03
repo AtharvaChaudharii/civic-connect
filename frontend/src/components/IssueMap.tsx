@@ -1,4 +1,4 @@
-import { useEffect, useRef } from "react";
+import { useEffect, useRef, memo } from "react";
 import L from "leaflet";
 import "leaflet/dist/leaflet.css";
 import type { Issue } from "@/types";
@@ -41,7 +41,17 @@ interface IssueMapProps {
   colorFn?: (issue: Issue) => string;
 }
 
-const IssueMap = ({
+/**
+ * Stable Leaflet map component.
+ *
+ * The map is initialised ONCE on mount. Pin moves and marker updates are
+ * applied incrementally — the map never tears-down/recreates when the
+ * user types in a nearby input field.
+ *
+ * Wrapped in React.memo with a value-based comparator so parent
+ * re-renders (e.g. from controlled inputs) don't cause a re-render here.
+ */
+const IssueMap = memo(({
   issues,
   center = [18.5204, 73.8567],
   zoom = 12,
@@ -54,70 +64,132 @@ const IssueMap = ({
 }: IssueMapProps) => {
   const mapRef = useRef<HTMLDivElement>(null);
   const mapInstanceRef = useRef<L.Map | null>(null);
+  const markersLayerRef = useRef<L.LayerGroup | null>(null);
+  const pinRef = useRef<L.Marker | null>(null);
 
+  // Keep callbacks in refs so effects never depend on them
+  const onPinMoveRef = useRef(onPinMove);
+  const onMarkerClickRef = useRef(onMarkerClick);
+  const colorFnRef = useRef(colorFn);
+  useEffect(() => { onPinMoveRef.current = onPinMove; }, [onPinMove]);
+  useEffect(() => { onMarkerClickRef.current = onMarkerClick; }, [onMarkerClick]);
+  useEffect(() => { colorFnRef.current = colorFn; }, [colorFn]);
+
+  // ── 1. Initialise map ONCE ──────────────────────────────────
   useEffect(() => {
-    if (!mapRef.current) return;
+    if (!mapRef.current || mapInstanceRef.current) return;
 
-    if (mapInstanceRef.current) {
-      mapInstanceRef.current.remove();
-    }
-
-    const map = L.map(mapRef.current).setView(singlePin || center, singlePin ? 15 : zoom);
+    const map = L.map(mapRef.current, {
+      center: singlePin || center,
+      zoom: singlePin ? 15 : zoom,
+    });
     mapInstanceRef.current = map;
 
     L.tileLayer("https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png", {
       attribution: '&copy; <a href="https://www.openstreetmap.org/copyright">OSM</a>',
     }).addTo(map);
 
+    markersLayerRef.current = L.layerGroup().addTo(map);
+
+    // If singlePin is set at mount, create the draggable marker now
     if (singlePin) {
       const marker = L.marker(singlePin, { draggable: draggablePin }).addTo(map);
-      if (draggablePin && onPinMove) {
+      if (draggablePin) {
         marker.on("dragend", () => {
           const pos = marker.getLatLng();
-          onPinMove(pos.lat, pos.lng);
+          onPinMoveRef.current?.(pos.lat, pos.lng);
         });
       }
-    } else {
-      issues.forEach((issue) => {
-        const color = colorFn ? colorFn(issue) : undefined;
-        const icon = color
-          ? L.divIcon({
-              html: `<div style="background:${color};width:14px;height:14px;border-radius:50%;border:2px solid white;box-shadow:0 2px 4px rgba(0,0,0,.3)"></div>`,
-              className: "",
-              iconSize: [14, 14],
-              iconAnchor: [7, 7],
-            })
-          : createIcon(issue.status);
-        const marker = L.marker([issue.lat, issue.lng], { icon }).addTo(map);
-
-        marker.bindPopup(`
-          <div style="min-width:180px">
-            <strong style="font-size:13px">${issue.title}</strong>
-            <p style="color:#6b7280;font-size:12px;margin:4px 0">${issue.location}</p>
-            <span style="display:inline-block;padding:2px 8px;border-radius:9999px;font-size:11px;font-weight:500;color:white;background:${statusColors[issue.status]}">${issue.status}</span>
-          </div>
-        `);
-
-        if (onMarkerClick) {
-          marker.on("click", () => onMarkerClick(issue));
-        }
-      });
-
-      if (issues.length > 0) {
-        const group = L.featureGroup(
-          issues.map((i) => L.marker([i.lat, i.lng]))
-        );
-        map.fitBounds(group.getBounds().pad(0.1));
-      }
+      pinRef.current = marker;
     }
 
     return () => {
       map.remove();
       mapInstanceRef.current = null;
+      markersLayerRef.current = null;
+      pinRef.current = null;
     };
-  }, [issues, center, zoom, singlePin, draggablePin]);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+
+  // ── 2. Move the single pin when coordinates change ──────────
+  useEffect(() => {
+    const map = mapInstanceRef.current;
+    if (!map || !singlePin) return;
+
+    if (pinRef.current) {
+      // Move existing pin — no tear-down
+      pinRef.current.setLatLng(singlePin);
+    } else {
+      // First time after mount (shouldn't normally happen, but safety)
+      const marker = L.marker(singlePin, { draggable: draggablePin }).addTo(map);
+      if (draggablePin) {
+        marker.on("dragend", () => {
+          const pos = marker.getLatLng();
+          onPinMoveRef.current?.(pos.lat, pos.lng);
+        });
+      }
+      pinRef.current = marker;
+    }
+
+    map.setView(singlePin, map.getZoom(), { animate: true });
+  }, [singlePin, draggablePin]);
+
+  // ── 3. Update issue markers when the issues array changes ───
+  useEffect(() => {
+    const map = mapInstanceRef.current;
+    const layer = markersLayerRef.current;
+    if (!map || !layer || singlePin) return;
+
+    layer.clearLayers();
+
+    issues.forEach((issue) => {
+      const color = colorFnRef.current ? colorFnRef.current(issue) : undefined;
+      const icon = color
+        ? L.divIcon({
+            html: `<div style="background:${color};width:14px;height:14px;border-radius:50%;border:2px solid white;box-shadow:0 2px 4px rgba(0,0,0,.3)"></div>`,
+            className: "",
+            iconSize: [14, 14],
+            iconAnchor: [7, 7],
+          })
+        : createIcon(issue.status);
+
+      const marker = L.marker([issue.lat, issue.lng], { icon }).addTo(layer);
+
+      marker.bindPopup(`
+        <div style="min-width:180px">
+          <strong style="font-size:13px">${issue.title}</strong>
+          <p style="color:#6b7280;font-size:12px;margin:4px 0">${issue.location}</p>
+          <span style="display:inline-block;padding:2px 8px;border-radius:9999px;font-size:11px;font-weight:500;color:white;background:${statusColors[issue.status]}">${issue.status}</span>
+        </div>
+      `);
+
+      if (onMarkerClickRef.current) {
+        const handler = onMarkerClickRef.current;
+        marker.on("click", () => handler(issue));
+      }
+    });
+
+    if (issues.length > 0) {
+      const group = L.featureGroup(
+        issues.map((i) => L.marker([i.lat, i.lng]))
+      );
+      map.fitBounds(group.getBounds().pad(0.1));
+    }
+  }, [issues, singlePin]);
 
   return <div ref={mapRef} className={`${height} w-full rounded-xl z-0`} />;
-};
+}, (prev, next) => {
+  // Value-based comparator — ignore callback identity changes
+  if (prev.height !== next.height) return false;
+  if (prev.zoom !== next.zoom) return false;
+  if (prev.draggablePin !== next.draggablePin) return false;
+  if (prev.issues !== next.issues) return false;
+  if (prev.center?.[0] !== next.center?.[0] || prev.center?.[1] !== next.center?.[1]) return false;
+  if (prev.singlePin?.[0] !== next.singlePin?.[0] || prev.singlePin?.[1] !== next.singlePin?.[1]) return false;
+  return true;
+});
+
+IssueMap.displayName = "IssueMap";
 
 export default IssueMap;

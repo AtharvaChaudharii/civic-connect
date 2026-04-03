@@ -23,20 +23,108 @@ function getTransporter(): nodemailer.Transporter | null {
     return transporter;
 }
 
-// ── Guest status update email ──
+// ── Issue confirmation email (citizen + guest) ──
 
-export async function sendGuestStatusEmail({
+export async function sendIssueConfirmationEmail({
+    to,
+    issueTitle,
+    description,
+    location,
+    imageUrl,
+}: {
+    to: string;
+    issueTitle: string;
+    description: string;
+    location: string;
+    imageUrl?: string;
+}): Promise<void> {
+    const t = getTransporter();
+    if (!t) return;
+
+    const truncatedDesc = description.length > 200
+        ? description.slice(0, 200) + "…"
+        : description;
+
+    const imageBlock = imageUrl
+        ? `<tr><td style="padding:0 32px 20px">
+             <img src="${imageUrl}" alt="Issue photo" style="width:100%;max-height:200px;object-fit:cover;border-radius:8px" />
+           </td></tr>`
+        : "";
+
+    const html = `<!DOCTYPE html>
+<html>
+<head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"></head>
+<body style="margin:0;padding:0;background:#f4f7f6;font-family:Arial,sans-serif">
+  <table width="100%" cellpadding="0" cellspacing="0" style="background:#f4f7f6;padding:32px 16px">
+    <tr><td align="center">
+      <table width="560" cellpadding="0" cellspacing="0" style="background:#fff;border-radius:12px;overflow:hidden;box-shadow:0 4px 24px rgba(0,0,0,.08)">
+        <tr><td style="background:#1E7F5C;padding:28px 32px">
+          <p style="margin:0;color:#fff;font-size:22px;font-weight:700">CivicTrack</p>
+          <p style="margin:4px 0 0;color:rgba(255,255,255,.8);font-size:13px">Civic Issue Tracking Platform</p>
+        </td></tr>
+        <tr><td style="padding:28px 32px 0">
+          <table cellpadding="0" cellspacing="0">
+            <tr><td style="background:#16a34a;color:#fff;border-radius:999px;padding:4px 14px;font-size:13px;font-weight:600">
+              ✅ Submitted Successfully
+            </td></tr>
+          </table>
+          <p style="margin:16px 0 8px;font-size:18px;font-weight:700;color:#111">Your issue has been submitted!</p>
+          <p style="margin:0;font-size:14px;color:#6b7280">Thank you for helping improve your city. Your report has been received and forwarded to the relevant department. Further updates will be shared soon.</p>
+        </td></tr>
+        ${imageBlock}
+        <tr><td style="padding:20px 32px">
+          <table width="100%" cellpadding="0" cellspacing="0" style="background:#f9fafb;border-radius:8px;padding:16px">
+            <tr><td>
+              <p style="margin:0 0 4px;font-size:11px;text-transform:uppercase;letter-spacing:.08em;color:#9ca3af">Issue Title</p>
+              <p style="margin:0 0 12px;font-size:15px;font-weight:600;color:#111">${issueTitle}</p>
+              <p style="margin:0 0 4px;font-size:11px;text-transform:uppercase;letter-spacing:.08em;color:#9ca3af">Location</p>
+              <p style="margin:0 0 12px;font-size:13px;color:#374151">${location}</p>
+              <p style="margin:0 0 4px;font-size:11px;text-transform:uppercase;letter-spacing:.08em;color:#9ca3af">Description</p>
+              <p style="margin:0;font-size:13px;color:#374151">${truncatedDesc}</p>
+            </td></tr>
+          </table>
+        </td></tr>
+        <tr><td style="padding:20px 32px 28px;border-top:1px solid #f0f0f0">
+          <p style="margin:0;font-size:12px;color:#9ca3af;text-align:center">
+            You received this email because you reported an issue on CivicTrack.<br>
+            © ${new Date().getFullYear()} CivicTrack. All rights reserved.
+          </p>
+        </td></tr>
+      </table>
+    </td></tr>
+  </table>
+</body>
+</html>`;
+
+    try {
+        await t.sendMail({
+            from: `"CivicTrack" <${env.GMAIL_USER}>`,
+            to,
+            subject: `✅ Issue Submitted Successfully: "${issueTitle}"`,
+            html,
+        });
+        console.log(`[Email] Confirmation sent to ${to}`);
+    } catch (err) {
+        console.error("[Email] Failed to send confirmation:", err);
+    }
+}
+
+// ── Status update email (works for both citizens and guests) ──
+
+export async function sendStatusUpdateEmail({
     to,
     issueTitle,
     newStatus,
     location,
     resolutionComment,
+    proofImageUrl,
 }: {
     to: string;
     issueTitle: string;
     newStatus: string;
     location: string;
     resolutionComment?: string | null;
+    proofImageUrl?: string | null;
 }): Promise<void> {
     const t = getTransporter();
     if (!t) return;
@@ -88,10 +176,15 @@ export async function sendGuestStatusEmail({
             </td></tr>
           </table>
         </td></tr>
+        ${proofImageUrl ? `
+        <tr><td style="padding:0 32px 20px">
+          <p style="margin:0 0 8px;font-size:11px;text-transform:uppercase;letter-spacing:.08em;color:#9ca3af">Resolution Proof</p>
+          <img src="${proofImageUrl}" alt="Resolution proof" style="width:100%;max-height:300px;object-fit:cover;border-radius:8px;border:1px solid #e5e7eb" />
+        </td></tr>` : ""}
         <tr><td style="padding:20px 32px 28px;border-top:1px solid #f0f0f0">
           <p style="margin:0;font-size:12px;color:#9ca3af;text-align:center">
-            You received this email because you submitted a report on CivicTrack.<br>
-            No account needed — we track your report by email.
+            You received this email because you reported an issue on CivicTrack.<br>
+            © ${new Date().getFullYear()} CivicTrack. All rights reserved.
           </p>
         </td></tr>
       </table>
@@ -112,6 +205,9 @@ export async function sendGuestStatusEmail({
         console.error("[Email] Failed to send status update:", err);
     }
 }
+
+// Backward-compatible alias
+export const sendGuestStatusEmail = sendStatusUpdateEmail;
 
 // ── OTP email for password reset ──
 
@@ -143,7 +239,7 @@ export async function sendOtpEmail(to: string, otp: string): Promise<void> {
           <p style="margin:0;font-size:13px;color:#9ca3af">If you didn't request a password reset, ignore this email. Your account is safe.</p>
         </td></tr>
         <tr><td style="padding:16px 32px 28px;border-top:1px solid #f0f0f0">
-          <p style="margin:0;font-size:12px;color:#9ca3af;text-align:center">© 2026 CivicTrack. All rights reserved.</p>
+          <p style="margin:0;font-size:12px;color:#9ca3af;text-align:center">© ${new Date().getFullYear()} CivicTrack. All rights reserved.</p>
         </td></tr>
       </table>
     </td></tr>

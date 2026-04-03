@@ -5,6 +5,7 @@ import { CATEGORY_DEPARTMENT_MAP } from "../config/env.js";
 import { findDuplicateTicket } from "../services/duplicateDetection.js";
 import { notifyDepartmentUsers, createNotification } from "../services/notificationService.js";
 import { emitIssueCreated, emitIssueUpvoted, emitIssueCommented } from "../services/socketEvents.js";
+import { sendIssueConfirmationEmail } from "../services/emailService.js";
 
 // Matches the IssueCategory enum in prisma/schema.prisma
 type IssueCategory = "Garbage" | "Pothole" | "WaterOverflow" | "StreetLight" | "Drainage" | "Footpath" | "Other";
@@ -84,6 +85,16 @@ export async function reportIssue(req: Request, res: Response): Promise<void> {
 
         // Real-time: broadcast new issue to the city
         emitIssueCreated(cityId, issuePost as unknown as Record<string, unknown>);
+
+        // Email confirmation to citizen (fire-and-forget — never block the response)
+        const userEmail = req.user!.email;
+        sendIssueConfirmationEmail({
+            to: userEmail,
+            issueTitle: title,
+            description,
+            location,
+            imageUrl: imagePath || undefined,
+        }).catch(() => { });
 
         res.status(201).json({
             message: existingTicketId

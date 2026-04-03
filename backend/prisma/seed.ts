@@ -14,30 +14,24 @@ import dotenv from "dotenv";
 
 dotenv.config();
 
-// Auto-derive direct (non-pooler) URL from pooler URL
-let datasourceUrl = (process.env.DIRECT_URL || process.env.DATABASE_URL || "").replace(/-pooler\./, ".");
-if (!datasourceUrl) { console.error("❌ No DATABASE_URL found in .env"); process.exit(1); }
+// Database connection initialization
+const datasourceUrl = process.env.DIRECT_URL || process.env.DATABASE_URL;
+if (!datasourceUrl) { 
+    console.error("❌ No DATABASE_URL or DIRECT_URL found in .env"); 
+    process.exit(1); 
+}
 
-// Add generous timeouts for Neon cold-start wake-up (can take 5-10s)
-const url = new URL(datasourceUrl);
-url.searchParams.set("connect_timeout", "30");
-url.searchParams.set("pool_timeout", "60");
-datasourceUrl = url.toString();
-
-const isPooler = datasourceUrl.includes("-pooler.");
-console.log(`🔌 Connecting via: ${isPooler ? "pooler ⚠️" : "direct ✅"}`);
-console.log(`⏳ Waiting for Neon to wake up (cold start may take ~10s)…\n`);
-
+console.log(`🔌 Connecting to database…`);
 const prisma = new PrismaClient({ datasourceUrl });
 
-// Retry helper for Neon cold-start
-async function withRetry<T>(fn: () => Promise<T>, retries = 5, delayMs = 5000): Promise<T> {
+// Helper to keep the script robust against connection issues
+async function withRetry<T>(fn: () => Promise<T>, retries = 3, delayMs = 3000): Promise<T> {
     for (let i = 1; i <= retries; i++) {
         try {
             return await fn();
         } catch (e: any) {
             if (i === retries) throw e;
-            console.log(`  ⟳ Connection attempt ${i} failed — retrying in ${delayMs / 1000}s… (${e.message?.slice(0, 60)})`);
+            console.log(`  ⟳ Connection attempt ${i} failed — retrying in ${delayMs / 1000}s…`);
             await new Promise(r => setTimeout(r, delayMs));
         }
     }
