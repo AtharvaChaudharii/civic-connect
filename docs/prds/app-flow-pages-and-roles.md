@@ -18,6 +18,7 @@ Citizen
 	•	Issue Detail Page
 	•	Search Results
 	•	Profile
+	•	Notifications Page
 
 ⸻
 
@@ -25,6 +26,7 @@ Department (City-Specific)
 	•	Department Dashboard
 	•	Ticket Detail Page
 	•	Performance Overview
+	•	Notifications Page
 
 ⸻
 
@@ -33,6 +35,7 @@ Municipal Corporation (City Admin)
 	•	Department Performance Page
 	•	Escalations View
 	•	Reports & Exports
+	•	Notifications Page
 
 ⸻
 
@@ -126,6 +129,17 @@ Impact Score metrics.
 
 Purpose:
 Personal accountability view.
+
+⸻
+
+Notifications Page (Shared across roles)
+
+Shows:
+	•	Real-time updates via Socket.io
+	•	Status changes, escalations, and issue confirmations
+
+Purpose:
+Keep users informed of updates without needing to check individual tickets manually.
 
 ⸻
 

@@ -245,6 +245,7 @@ MVP (Single Platform, Multi-City Enabled)
 V1 (Implemented)
 	•	✅ Guest Quick Report (no login) with email status notifications
 	•	✅ Email service via Nodemailer (Gmail SMTP)
+	•	✅ In-app real-time notifications via Socket.io for all registered roles
 	•	Advanced city analytics
 	•	Department performance metrics
 	•	Report export (CSV/PDF)

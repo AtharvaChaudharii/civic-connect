@@ -215,7 +215,7 @@ Checkpoint:
 
 Phase 7 — Notifications (Week 8)
 
-In-app (Registered Reporters):
+In-app (Registered Reporters) — Implemented:
 	•	Issue submitted confirmation
 	•	Status changed notification
 	•	Escalation notification
