@@ -4,54 +4,55 @@ import { env } from "../config/env.js";
 let transporter: nodemailer.Transporter | null = null;
 
 function getTransporter(): nodemailer.Transporter | null {
-    if (transporter) return transporter;
+  if (transporter) return transporter;
 
-    const user = env.GMAIL_USER;
-    const pass = env.GMAIL_APP_PASSWORD;
+  const user = env.GMAIL_USER;
+  const pass = env.GMAIL_APP_PASSWORD;
 
-    if (!user || !pass) {
-        console.warn("[Email] GMAIL_USER or GMAIL_APP_PASSWORD not set — email disabled.");
-        return null;
-    }
+  if (!user || !pass) {
+    console.warn("[Email] GMAIL_USER or GMAIL_APP_PASSWORD not set — email disabled.");
+    return null;
+  }
 
-    transporter = nodemailer.createTransport({
-        service: "gmail",
-        auth: { user, pass },
-    });
+  transporter = nodemailer.createTransport({
+    service: "gmail",
+    auth: { user, pass },
+  });
 
-    console.log(`[Email] Transporter ready for ${user}`);
-    return transporter;
+  console.log(`[Email] Transporter ready for ${user}`);
+  return transporter;
 }
 
-// ── Issue confirmation email (citizen + guest) ──
+// ── Issue confirmation email ──
 
 export async function sendIssueConfirmationEmail({
-    to,
-    issueTitle,
-    description,
-    location,
-    imageUrl,
+  to,
+  issueTitle,
+  description,
+  location,
+  imageUrl,
 }: {
-    to: string;
-    issueTitle: string;
-    description: string;
-    location: string;
-    imageUrl?: string;
+  to: string;
+  issueTitle: string;
+  description: string;
+  location: string;
+  imageUrl?: string;
 }): Promise<void> {
-    const t = getTransporter();
-    if (!t) return;
+  const t = getTransporter();
+  if (!t) return;
 
-    const truncatedDesc = description.length > 200
-        ? description.slice(0, 200) + "…"
-        : description;
+  const truncatedDesc =
+    description.length > 200
+      ? description.slice(0, 200) + "…"
+      : description;
 
-    const imageBlock = imageUrl
-        ? `<tr><td style="padding:0 32px 20px">
+  const imageBlock = imageUrl
+    ? `<tr><td style="padding:0 32px 20px">
              <img src="${imageUrl}" alt="Issue photo" style="width:100%;max-height:200px;object-fit:cover;border-radius:8px" />
            </td></tr>`
-        : "";
+    : "";
 
-    const html = `<!DOCTYPE html>
+  const html = `<!DOCTYPE html>
 <html>
 <head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"></head>
 <body style="margin:0;padding:0;background:#f4f7f6;font-family:Arial,sans-serif">
@@ -65,7 +66,7 @@ export async function sendIssueConfirmationEmail({
         <tr><td style="padding:28px 32px 0">
           <table cellpadding="0" cellspacing="0">
             <tr><td style="background:#16a34a;color:#fff;border-radius:999px;padding:4px 14px;font-size:13px;font-weight:600">
-              ✅ Submitted Successfully
+              Submitted Successfully
             </td></tr>
           </table>
           <p style="margin:16px 0 8px;font-size:18px;font-weight:700;color:#111">Your issue has been submitted!</p>
@@ -96,53 +97,53 @@ export async function sendIssueConfirmationEmail({
 </body>
 </html>`;
 
-    try {
-        await t.sendMail({
-            from: `"CivicTrack" <${env.GMAIL_USER}>`,
-            to,
-            subject: `✅ Issue Submitted Successfully: "${issueTitle}"`,
-            html,
-        });
-        console.log(`[Email] Confirmation sent to ${to}`);
-    } catch (err) {
-        console.error("[Email] Failed to send confirmation:", err);
-    }
+  try {
+    await t.sendMail({
+      from: `"CivicTrack" <${env.GMAIL_USER}>`,
+      to,
+      subject: `Issue Submitted Successfully: "${issueTitle}"`,
+      html,
+    });
+    console.log(`[Email] Confirmation sent to ${to}`);
+  } catch (err) {
+    console.error("[Email] Failed to send confirmation:", err);
+  }
 }
 
-// ── Status update email (works for both citizens and guests) ──
+// ── Status update email ──
 
 export async function sendStatusUpdateEmail({
-    to,
-    issueTitle,
-    newStatus,
-    location,
-    resolutionComment,
-    proofImageUrl,
+  to,
+  issueTitle,
+  newStatus,
+  location,
+  resolutionComment,
+  proofImageUrl,
 }: {
-    to: string;
-    issueTitle: string;
-    newStatus: string;
-    location: string;
-    resolutionComment?: string | null;
-    proofImageUrl?: string | null;
+  to: string;
+  issueTitle: string;
+  newStatus: string;
+  location: string;
+  resolutionComment?: string | null;
+  proofImageUrl?: string | null;
 }): Promise<void> {
-    const t = getTransporter();
-    if (!t) return;
+  const t = getTransporter();
+  if (!t) return;
 
-    const statusLabels: Record<string, { emoji: string; line: string; color: string }> = {
-        Ongoing:  { emoji: "🔧", line: "Your reported issue is now being worked on by the department.", color: "#3b82f6" },
-        Resolved: { emoji: "✅", line: "Great news! Your reported issue has been resolved.", color: "#16a34a" },
-        Escalated:{ emoji: "⚠️", line: "Your issue has been escalated for priority review.", color: "#ef4444" },
-        Pending:  { emoji: "📋", line: "Your issue has been set back to pending review.", color: "#f59e0b" },
-    };
+  const statusLabels: Record<string, { emoji: string; line: string; color: string }> = {
+    Ongoing: { emoji: "", line: "Your reported issue is now being worked on by the department.", color: "#3b82f6" },
+    Resolved: { emoji: "", line: "Great news! Your reported issue has been resolved.", color: "#16a34a" },
+    Escalated: { emoji: "", line: "Your issue has been escalated for priority review.", color: "#ef4444" },
+    Pending: { emoji: "", line: "Your issue has been set back to pending review.", color: "#f59e0b" },
+  };
 
-    const meta = statusLabels[newStatus] ?? {
-        emoji: "ℹ️",
-        line: `Your issue status has been updated to ${newStatus}.`,
-        color: "#6b7280",
-    };
+  const meta = statusLabels[newStatus] ?? {
+    emoji: "",
+    line: `Your issue status has been updated to ${newStatus}.`,
+    color: "#6b7280",
+  };
 
-    const html = `<!DOCTYPE html>
+  const html = `<!DOCTYPE html>
 <html>
 <head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"></head>
 <body style="margin:0;padding:0;background:#f4f7f6;font-family:Arial,sans-serif">
@@ -156,7 +157,7 @@ export async function sendStatusUpdateEmail({
         <tr><td style="padding:28px 32px 0">
           <table cellpadding="0" cellspacing="0">
             <tr><td style="background:${meta.color};color:#fff;border-radius:999px;padding:4px 14px;font-size:13px;font-weight:600">
-              ${meta.emoji} ${newStatus}
+              ${newStatus}
             </td></tr>
           </table>
           <p style="margin:16px 0 8px;font-size:18px;font-weight:700;color:#111">${meta.line}</p>
@@ -193,32 +194,32 @@ export async function sendStatusUpdateEmail({
 </body>
 </html>`;
 
-    try {
-        await t.sendMail({
-            from: `"CivicTrack" <${env.GMAIL_USER}>`,
-            to,
-            subject: `${meta.emoji} Issue Update: "${issueTitle}" is now ${newStatus}`,
-            html,
-        });
-        console.log(`[Email] Status update sent to ${to}`);
-    } catch (err) {
-        console.error("[Email] Failed to send status update:", err);
-    }
+  try {
+    await t.sendMail({
+      from: `"CivicTrack" <${env.GMAIL_USER}>`,
+      to,
+      subject: `Issue Update: "${issueTitle}" is now ${newStatus}`,
+      html,
+    });
+    console.log(`[Email] Status update sent to ${to}`);
+  } catch (err) {
+    console.error("[Email] Failed to send status update:", err);
+  }
 }
 
-// Backward-compatible alias
+// Alias
 export const sendGuestStatusEmail = sendStatusUpdateEmail;
 
-// ── OTP email for password reset ──
+// ── OTP email ──
 
 export async function sendOtpEmail(to: string, otp: string): Promise<void> {
-    const t = getTransporter();
-    if (!t) {
-        console.error("[Email] Cannot send OTP — transporter not configured");
-        return;
-    }
+  const t = getTransporter();
+  if (!t) {
+    console.error("[Email] Cannot send OTP — transporter not configured");
+    return;
+  }
 
-    const html = `<!DOCTYPE html>
+  const html = `<!DOCTYPE html>
 <html>
 <head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"></head>
 <body style="margin:0;padding:0;background:#f4f7f6;font-family:Arial,sans-serif">
@@ -247,16 +248,16 @@ export async function sendOtpEmail(to: string, otp: string): Promise<void> {
 </body>
 </html>`;
 
-    try {
-        await t.sendMail({
-            from: `"CivicTrack" <${env.GMAIL_USER}>`,
-            to,
-            subject: `🔐 Your CivicTrack Password Reset OTP: ${otp}`,
-            html,
-        });
-        console.log(`[Email] OTP sent to ${to}`);
-    } catch (err) {
-        console.error("[Email] Failed to send OTP:", err);
-        throw err; // rethrow so controller can handle it
-    }
+  try {
+    await t.sendMail({
+      from: `"CivicTrack" <${env.GMAIL_USER}>`,
+      to,
+      subject: `Your CivicTrack Password Reset OTP: ${otp}`,
+      html,
+    });
+    console.log(`[Email] OTP sent to ${to}`);
+  } catch (err) {
+    console.error("[Email] Failed to send OTP:", err);
+    throw err;
+  }
 }

@@ -13,6 +13,7 @@
         "declarationMap": true,
         "sourceMap": true,
         "outDir": "./dist",
+        "rootDir": "./src",
         "baseUrl": ".",
         "paths": {
             "@/*": [
@@ -21,8 +22,7 @@
         }
     },
     "include": [
-        "src/**/*",
-        "prisma/**/*"
+        "src/**/*"
     ],
     "exclude": [
         "node_modules",

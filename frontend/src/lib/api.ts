@@ -1,7 +1,10 @@
 // ── Centralized API client ──
 // Handles JWT token management, error handling, and typed requests.
 
-const API_BASE = "/api";
+// VITE_API_URL is set at Vercel build time (e.g. https://api.civicconnect.example.com)
+// Falls back to "" so local dev Vite proxy (/api → localhost:5001) still works.
+const BACKEND_URL = import.meta.env.VITE_API_URL ?? "";
+const API_BASE = `${BACKEND_URL}/api`;
 
 function getToken(): string | null {
     return localStorage.getItem("civictrack_token");

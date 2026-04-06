@@ -75,8 +75,11 @@ export function SocketProvider({ children }: { children: ReactNode }) {
         const token = localStorage.getItem("civictrack_token");
         if (!token) return;
 
-        // Connect to the same origin — Vite proxy forwards /socket.io to backend
-        const newSocket = io({
+        // In production (Vercel), VITE_API_URL points to the deployed backend.
+        // Locally, undefined makes Socket.IO use same-origin (Vite proxy handles it).
+        const backendUrl = import.meta.env.VITE_API_URL || undefined;
+
+        const newSocket = io(backendUrl, {
             auth: { token },
             transports: ["websocket", "polling"],
             reconnectionAttempts: 10,
