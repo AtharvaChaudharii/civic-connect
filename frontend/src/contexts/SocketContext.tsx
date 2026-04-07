@@ -72,7 +72,7 @@ export function SocketProvider({ children }: { children: ReactNode }) {
             return;
         }
 
-        const token = localStorage.getItem("civictrack_token");
+        const token = localStorage.getItem("civicconnect_token");
         if (!token) return;
 
         // In production (Vercel), VITE_API_URL points to the deployed backend.

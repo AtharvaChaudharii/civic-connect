@@ -7,15 +7,15 @@ const BACKEND_URL = import.meta.env.VITE_API_URL ?? "";
 const API_BASE = `${BACKEND_URL}/api`;
 
 function getToken(): string | null {
-    return localStorage.getItem("civictrack_token");
+    return localStorage.getItem("civicconnect_token");
 }
 
 function setToken(token: string) {
-    localStorage.setItem("civictrack_token", token);
+    localStorage.setItem("civicconnect_token", token);
 }
 
 function removeToken() {
-    localStorage.removeItem("civictrack_token");
+    localStorage.removeItem("civicconnect_token");
 }
 
 function authHeaders(): HeadersInit {

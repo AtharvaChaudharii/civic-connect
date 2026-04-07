@@ -93,7 +93,7 @@ const ForgotPassword = () => {
           <div className="flex h-8 w-8 items-center justify-center rounded-full bg-primary">
             <span className="text-sm font-bold text-primary-foreground">CT</span>
           </div>
-          <span className="text-lg font-semibold text-foreground">CivicTrack</span>
+          <span className="text-lg font-semibold text-foreground">Civic Connect</span>
         </Link>
       </div>
     </header>
@@ -241,7 +241,7 @@ const ForgotPassword = () => {
       </div>
 
       <div className="border-t py-6 text-center">
-        <p className="text-label text-muted-foreground">© 2026 CivicTrack. All rights reserved.</p>
+        <p className="text-label text-muted-foreground">© 2026 Civic Connect. All rights reserved.</p>
       </div>
     </div>
   );

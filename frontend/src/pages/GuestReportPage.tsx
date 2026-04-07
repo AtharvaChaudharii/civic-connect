@@ -79,7 +79,7 @@ const GuestNavbar = ({ email }: { email: string }) => {
           <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-primary">
             <span className="text-sm font-bold text-primary-foreground">CT</span>
           </div>
-          <span className="text-lg font-semibold text-foreground">CivicTrack</span>
+          <span className="text-lg font-semibold text-foreground">Civic Connect</span>
         </div>
         <span className="text-caption text-muted-foreground hidden sm:block">
           Reporting as guest · <span className="font-medium">{truncated}</span>

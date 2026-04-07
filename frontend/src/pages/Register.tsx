@@ -55,7 +55,7 @@ const Register = () => {
             <div className="flex h-8 w-8 items-center justify-center rounded-full bg-primary">
               <span className="text-sm font-bold text-primary-foreground">CT</span>
             </div>
-            <span className="text-lg font-semibold text-foreground">CivicTrack</span>
+            <span className="text-lg font-semibold text-foreground">Civic Connect</span>
           </Link>
           <div className="flex items-center gap-4">
             <Link to="/" className="text-caption font-medium text-muted-foreground hover:text-foreground">Home</Link>
@@ -183,7 +183,7 @@ const Register = () => {
           <span>·</span>
           <a href="#" className="hover:text-foreground">Terms of Service</a>
         </div>
-        <p className="mt-4 text-label text-muted-foreground">© 2026 CivicTrack. All rights reserved.</p>
+        <p className="mt-4 text-label text-muted-foreground">© 2026 Civic Connect. All rights reserved.</p>
       </div>
     </div>
   );

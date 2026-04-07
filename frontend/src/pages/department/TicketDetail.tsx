@@ -125,7 +125,7 @@ const TicketDetail = () => {
         method: "POST",
         headers: {
           "Content-Type": "application/json",
-          Authorization: `Bearer ${localStorage.getItem("civictrack_token")}`,
+          Authorization: `Bearer ${localStorage.getItem("civicconnect_token")}`,
         },
         body: JSON.stringify({ content: commentText }),
       })).json();

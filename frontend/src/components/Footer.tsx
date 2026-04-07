@@ -19,7 +19,7 @@ const Footer = () => (
             <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-primary">
               <span className="text-sm font-bold text-primary-foreground">CT</span>
             </div>
-            <span className="text-lg font-semibold text-foreground">CivicTrack</span>
+            <span className="text-lg font-semibold text-foreground">Civic Connect</span>
           </div>
           <p className="max-w-xs text-caption text-muted-foreground">
             Empowering citizens to report and track civic issues for cleaner, safer, and
@@ -50,7 +50,7 @@ const Footer = () => (
       </div>
 
       <div className="mt-10 border-t pt-6 text-center text-label text-muted-foreground">
-        © {new Date().getFullYear()} CivicTrack. All rights reserved.
+        © {new Date().getFullYear()} Civic Connect. All rights reserved.
       </div>
     </div>
   </footer>

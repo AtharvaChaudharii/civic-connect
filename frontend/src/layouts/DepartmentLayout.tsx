@@ -40,7 +40,7 @@ const DepartmentLayout = () => {
               <span className="text-sm font-bold text-primary-foreground">CT</span>
             </div>
             <div className="flex flex-col">
-              <span className="text-sm font-semibold text-foreground leading-tight">CivicTrack</span>
+              <span className="text-sm font-semibold text-foreground leading-tight">Civic Connect</span>
               <span className="text-label text-muted-foreground leading-tight">{user?.department} · {user?.city}</span>
             </div>
           </NavLink>

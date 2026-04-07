@@ -25,7 +25,7 @@ const MunicipalReports = () => {
   }, []);
 
   const handleExportCSV = () => {
-    const token = localStorage.getItem("civictrack_token");
+    const token = localStorage.getItem("civicconnect_token");
     fetch("/api/municipal/reports/export?format=csv", {
       headers: { Authorization: `Bearer ${token || ""}` },
     })
@@ -34,7 +34,7 @@ const MunicipalReports = () => {
         const url = URL.createObjectURL(blob);
         const a = document.createElement("a");
         a.href = url;
-        a.download = `civictrack_${user?.city?.toLowerCase()}_report.csv`;
+        a.download = `CivicConnect_${user?.city?.toLowerCase()}_report.csv`;
         a.click();
         URL.revokeObjectURL(url);
       })
