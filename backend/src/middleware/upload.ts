@@ -15,7 +15,7 @@ cloudinary.config({
 const storage = multer.memoryStorage();
 
 const fileFilter = (_req: Express.Request, file: Express.Multer.File, cb: multer.FileFilterCallback) => {
-    const allowedMimes = ["image/jpeg", "image/png", "image/webp", "image/gif"];
+    const allowedMimes = ["image/jpeg", "image/png", "image/webp", "image/gif", "image/heic", "image/heif"];
     if (allowedMimes.includes(file.mimetype)) {
         cb(null, true);
     } else {

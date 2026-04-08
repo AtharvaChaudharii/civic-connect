@@ -30,21 +30,25 @@ const ProfilePage = () => {
   // Upvoted issues state
   const [upvotedIssues, setUpvotedIssues] = useState<ApiIssue[]>([]);
   const [upvotedLoading, setUpvotedLoading] = useState(false);
-  const [upvotedFetched, setUpvotedFetched] = useState(false);
+  const [activeTab, setActiveTab] = useState("reported");
 
   const fetchUpvotedIssues = useCallback(async () => {
-    if (!user || upvotedFetched) return;
+    if (!user) return;
     setUpvotedLoading(true);
     try {
       const res = await issuesApi.upvoted();
       setUpvotedIssues(res.issues);
-      setUpvotedFetched(true);
     } catch (err) {
-      console.error(err);
+      console.error("Failed to fetch upvoted issues:", err);
     } finally {
       setUpvotedLoading(false);
     }
-  }, [user, upvotedFetched]);
+  }, [user]);
+
+  // Fetch upvoted issues when tab switches to "upvoted"
+  useEffect(() => {
+    if (activeTab === "upvoted") fetchUpvotedIssues();
+  }, [activeTab, fetchUpvotedIssues]);
 
   const statusColors: Record<string, string> = { Pending: "bg-amber-500", Ongoing: "bg-orange-500", Resolved: "bg-emerald-500", Escalated: "bg-red-500" };
 
@@ -136,7 +140,7 @@ const ProfilePage = () => {
 
       <div className="grid gap-8 lg:grid-cols-3">
         <div className="lg:col-span-2">
-          <Tabs defaultValue="reported" onValueChange={(v) => { if (v === "upvoted") fetchUpvotedIssues(); }}>
+          <Tabs value={activeTab} onValueChange={setActiveTab}>
             <TabsList className="mb-6 h-auto gap-0 bg-transparent p-0 border-b rounded-none w-full justify-start">
               <TabsTrigger value="reported" className="rounded-none border-b-2 border-transparent data-[state=active]:border-primary data-[state=active]:bg-transparent data-[state=active]:shadow-none gap-1.5 px-4 pb-3">
                 <FileText className="h-4 w-4" /> My Reported Issues

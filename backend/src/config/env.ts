@@ -8,7 +8,7 @@ export const env = {
     JWT_SECRET: process.env.JWT_SECRET || "fallback_secret",
     JWT_EXPIRES_IN: process.env.JWT_EXPIRES_IN || "7d",
     FRONTEND_URL: process.env.FRONTEND_URL || "http://localhost:5173",
-    MAX_FILE_SIZE: parseInt(process.env.MAX_FILE_SIZE || "5242880", 10),
+    MAX_FILE_SIZE: parseInt(process.env.MAX_FILE_SIZE || "15728640", 10), // 15MB default for camera captures
     // Cloudinary
     CLOUDINARY_CLOUD_NAME: process.env.CLOUDINARY_CLOUD_NAME || "",
     CLOUDINARY_API_KEY: process.env.CLOUDINARY_API_KEY || "",

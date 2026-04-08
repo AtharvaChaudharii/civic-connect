@@ -163,13 +163,40 @@ const ReportIssue = () => {
     }).catch(() => { });
   }, [category, pinLat, pinLng]);
 
-  const handleImageUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
+  // Compress image if larger than 3MB (camera captures can be 8-12MB)
+  const compressImage = (file: File): Promise<File> => {
+    return new Promise((resolve) => {
+      if (file.size <= 3 * 1024 * 1024) { resolve(file); return; }
+      const img = new window.Image();
+      img.onload = () => {
+        const canvas = document.createElement("canvas");
+        const MAX = 1920;
+        let { width, height } = img;
+        if (width > MAX || height > MAX) {
+          if (width > height) { height = Math.round((height * MAX) / width); width = MAX; }
+          else { width = Math.round((width * MAX) / height); height = MAX; }
+        }
+        canvas.width = width;
+        canvas.height = height;
+        canvas.getContext("2d")!.drawImage(img, 0, 0, width, height);
+        canvas.toBlob(
+          (blob) => { resolve(blob ? new File([blob], file.name, { type: "image/jpeg" }) : file); },
+          "image/jpeg", 0.8
+        );
+      };
+      img.onerror = () => resolve(file);
+      img.src = URL.createObjectURL(file);
+    });
+  };
+
+  const handleImageUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (file) {
-      setImageFile(file);
+      const compressed = await compressImage(file);
+      setImageFile(compressed);
       const reader = new FileReader();
       reader.onloadend = () => setImagePreview(reader.result as string);
-      reader.readAsDataURL(file);
+      reader.readAsDataURL(compressed);
     }
   };
 
