@@ -60,7 +60,7 @@ export async function sendIssueConfirmationEmail({
     <tr><td align="center">
       <table width="560" cellpadding="0" cellspacing="0" style="background:#fff;border-radius:12px;overflow:hidden;box-shadow:0 4px 24px rgba(0,0,0,.08)">
         <tr><td style="background:#1E7F5C;padding:28px 32px">
-          <p style="margin:0;color:#fff;font-size:22px;font-weight:700">CivicTrack</p>
+          <p style="margin:0;color:#fff;font-size:22px;font-weight:700">CivicConnect</p>
           <p style="margin:4px 0 0;color:rgba(255,255,255,.8);font-size:13px">Civic Issue Tracking Platform</p>
         </td></tr>
         <tr><td style="padding:28px 32px 0">
@@ -87,8 +87,8 @@ export async function sendIssueConfirmationEmail({
         </td></tr>
         <tr><td style="padding:20px 32px 28px;border-top:1px solid #f0f0f0">
           <p style="margin:0;font-size:12px;color:#9ca3af;text-align:center">
-            You received this email because you reported an issue on CivicTrack.<br>
-            © ${new Date().getFullYear()} CivicTrack. All rights reserved.
+            You received this email because you reported an issue on CivicConnect.<br>
+            © ${new Date().getFullYear()} CivicConnect. All rights reserved.
           </p>
         </td></tr>
       </table>
@@ -99,7 +99,7 @@ export async function sendIssueConfirmationEmail({
 
   try {
     await t.sendMail({
-      from: `"CivicTrack" <${env.GMAIL_USER}>`,
+      from: `"CivicConnect" <${env.GMAIL_USER}>`,
       to,
       subject: `Issue Submitted Successfully: "${issueTitle}"`,
       html,
@@ -151,7 +151,7 @@ export async function sendStatusUpdateEmail({
     <tr><td align="center">
       <table width="560" cellpadding="0" cellspacing="0" style="background:#fff;border-radius:12px;overflow:hidden;box-shadow:0 4px 24px rgba(0,0,0,.08)">
         <tr><td style="background:#1E7F5C;padding:28px 32px">
-          <p style="margin:0;color:#fff;font-size:22px;font-weight:700">CivicTrack</p>
+          <p style="margin:0;color:#fff;font-size:22px;font-weight:700">CivicConnect</p>
           <p style="margin:4px 0 0;color:rgba(255,255,255,.8);font-size:13px">Civic Issue Tracking Platform</p>
         </td></tr>
         <tr><td style="padding:28px 32px 0">
@@ -184,8 +184,8 @@ export async function sendStatusUpdateEmail({
         </td></tr>` : ""}
         <tr><td style="padding:20px 32px 28px;border-top:1px solid #f0f0f0">
           <p style="margin:0;font-size:12px;color:#9ca3af;text-align:center">
-            You received this email because you reported an issue on CivicTrack.<br>
-            © ${new Date().getFullYear()} CivicTrack. All rights reserved.
+            You received this email because you reported an issue on CivicConnect.<br>
+            © ${new Date().getFullYear()} CivicConnect. All rights reserved.
           </p>
         </td></tr>
       </table>
@@ -196,7 +196,7 @@ export async function sendStatusUpdateEmail({
 
   try {
     await t.sendMail({
-      from: `"CivicTrack" <${env.GMAIL_USER}>`,
+      from: `"CivicConnect" <${env.GMAIL_USER}>`,
       to,
       subject: `Issue Update: "${issueTitle}" is now ${newStatus}`,
       html,
@@ -227,7 +227,7 @@ export async function sendOtpEmail(to: string, otp: string): Promise<void> {
     <tr><td align="center">
       <table width="560" cellpadding="0" cellspacing="0" style="background:#fff;border-radius:12px;overflow:hidden;box-shadow:0 4px 24px rgba(0,0,0,.08)">
         <tr><td style="background:#1E7F5C;padding:28px 32px">
-          <p style="margin:0;color:#fff;font-size:22px;font-weight:700">CivicTrack</p>
+          <p style="margin:0;color:#fff;font-size:22px;font-weight:700">CivicConnect</p>
           <p style="margin:4px 0 0;color:rgba(255,255,255,.8);font-size:13px">Password Reset</p>
         </td></tr>
         <tr><td style="padding:32px">
@@ -240,7 +240,7 @@ export async function sendOtpEmail(to: string, otp: string): Promise<void> {
           <p style="margin:0;font-size:13px;color:#9ca3af">If you didn't request a password reset, ignore this email. Your account is safe.</p>
         </td></tr>
         <tr><td style="padding:16px 32px 28px;border-top:1px solid #f0f0f0">
-          <p style="margin:0;font-size:12px;color:#9ca3af;text-align:center">© ${new Date().getFullYear()} CivicTrack. All rights reserved.</p>
+          <p style="margin:0;font-size:12px;color:#9ca3af;text-align:center">© ${new Date().getFullYear()} CivicConnect. All rights reserved.</p>
         </td></tr>
       </table>
     </td></tr>
@@ -250,9 +250,9 @@ export async function sendOtpEmail(to: string, otp: string): Promise<void> {
 
   try {
     await t.sendMail({
-      from: `"CivicTrack" <${env.GMAIL_USER}>`,
+      from: `"CivicConnect" <${env.GMAIL_USER}>`,
       to,
-      subject: `Your CivicTrack Password Reset OTP: ${otp}`,
+      subject: `Your CivicConnect Password Reset OTP: ${otp}`,
       html,
     });
     console.log(`[Email] OTP sent to ${to}`);
