@@ -150,7 +150,7 @@ const ProfilePage = () => {
               </TabsTrigger>
             </TabsList>
 
-            <TabsContent value="reported">
+            <TabsContent value="reported" forceMount className={activeTab !== "reported" ? "hidden" : ""}>
               <div className="mb-4 flex gap-3">
                 <div className="relative flex-1">
                   <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
@@ -214,7 +214,7 @@ const ProfilePage = () => {
               )}
             </TabsContent>
 
-            <TabsContent value="upvoted">
+            <TabsContent value="upvoted" forceMount className={activeTab !== "upvoted" ? "hidden" : ""}>
               {upvotedLoading ? (
                 <div className="flex justify-center py-12"><Loader2 className="h-7 w-7 animate-spin text-primary" /></div>
               ) : upvotedIssues.length > 0 ? (
