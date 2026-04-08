@@ -16,8 +16,6 @@ export const env = {
     // Gmail (for guest email notifications + password reset OTPs)
     GMAIL_USER: process.env.GMAIL_USER || "",
     GMAIL_APP_PASSWORD: process.env.GMAIL_APP_PASSWORD || "",
-    // Sentry
-    SENTRY_DSN: process.env.SENTRY_DSN || "",
 };
 
 // Category → Department mapping

@@ -5,7 +5,7 @@ export const mockUsers: User[] = [
   {
     id: "c1",
     name: "Aarav Sharma",
-    email: "citizen@civictrack.in",
+    email: "citizen@civicconnect.in",
     role: "citizen",
     city: "Pune",
     createdAt: "2025-12-01T10:00:00Z",
@@ -13,7 +13,7 @@ export const mockUsers: User[] = [
   {
     id: "c2",
     name: "Priya Deshmukh",
-    email: "priya@civictrack.in",
+    email: "priya@civicconnect.in",
     role: "citizen",
     city: "Pune",
     createdAt: "2025-12-05T10:00:00Z",
@@ -21,7 +21,7 @@ export const mockUsers: User[] = [
   {
     id: "c3",
     name: "Rohan Mehta",
-    email: "rohan@civictrack.in",
+    email: "rohan@civicconnect.in",
     role: "citizen",
     city: "Mumbai",
     createdAt: "2025-12-10T10:00:00Z",

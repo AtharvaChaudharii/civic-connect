@@ -16,9 +16,9 @@ dotenv.config();
 
 // Database connection initialization
 const datasourceUrl = process.env.DIRECT_URL || process.env.DATABASE_URL;
-if (!datasourceUrl) { 
-    console.error("❌ No DATABASE_URL or DIRECT_URL found in .env"); 
-    process.exit(1); 
+if (!datasourceUrl) {
+    console.error("❌ No DATABASE_URL or DIRECT_URL found in .env");
+    process.exit(1);
 }
 
 console.log(`🔌 Connecting to database…`);
@@ -49,17 +49,17 @@ const DEPT_CONFIG: {
     email: string;
     userName: string;
 }[] = [
-    { categoryType: "Garbage",       name: "Sanitation",              email: "sanitation@pune.gov.in",  userName: "Sanitation Officer"      },
-    { categoryType: "Pothole",       name: "Roads & Infrastructure",  email: "roads@pune.gov.in",       userName: "Roads Officer"           },
-    { categoryType: "WaterOverflow", name: "Water Supply",            email: "water@pune.gov.in",       userName: "Water Supply Officer"    },
-    { categoryType: "StreetLight",   name: "Electrical",              email: "electrical@pune.gov.in",  userName: "Electrical Officer"      },
-    { categoryType: "Drainage",      name: "Drainage",                email: "drainage@pune.gov.in",    userName: "Drainage Officer"        },
-    { categoryType: "Footpath",      name: "Roads & Infrastructure (Footpath)", email: "footpath@pune.gov.in", userName: "Footpath Officer"  },
-    { categoryType: "Other",         name: "General",                 email: "general@pune.gov.in",     userName: "General Officer"         },
-];
+        { categoryType: "Garbage", name: "Sanitation", email: "sanitation@pune.gov.in", userName: "Sanitation Officer" },
+        { categoryType: "Pothole", name: "Roads & Infrastructure", email: "roads@pune.gov.in", userName: "Roads Officer" },
+        { categoryType: "WaterOverflow", name: "Water Supply", email: "water@pune.gov.in", userName: "Water Supply Officer" },
+        { categoryType: "StreetLight", name: "Electrical", email: "electrical@pune.gov.in", userName: "Electrical Officer" },
+        { categoryType: "Drainage", name: "Drainage", email: "drainage@pune.gov.in", userName: "Drainage Officer" },
+        { categoryType: "Footpath", name: "Roads & Infrastructure (Footpath)", email: "footpath@pune.gov.in", userName: "Footpath Officer" },
+        { categoryType: "Other", name: "General", email: "general@pune.gov.in", userName: "General Officer" },
+    ];
 
 async function main() {
-    console.log("🌱 Seeding CivicTrack demo accounts…\n");
+    console.log("🌱 Seeding CivicConnect demo accounts…\n");
 
     // 1. Ensure Pune city exists — wrapped in retry for Neon cold-start
     const pune = await withRetry(() => prisma.city.upsert({
@@ -74,11 +74,11 @@ async function main() {
 
     // 3. Ensure citizen demo account exists
     await prisma.user.upsert({
-        where: { email: "citizen@civictrack.in" },
+        where: { email: "citizen@civicconnect.in" },
         update: { name: "Demo Citizen", role: "citizen", cityId: pune.id },
-        create: { name: "Demo Citizen", email: "citizen@civictrack.in", password: hashedPwd, role: "citizen", cityId: pune.id },
+        create: { name: "Demo Citizen", email: "citizen@civicconnect.in", password: hashedPwd, role: "citizen", cityId: pune.id },
     });
-    console.log(`  ✅ citizen@civictrack.in  → citizen`);
+    console.log(`  ✅ citizen@civicconnect.in  → citizen`);
 
     // 4. Ensure municipal admin account exists
     await prisma.user.upsert({
@@ -123,7 +123,7 @@ async function main() {
     console.log("\n🎉 Seeding complete!");
     console.log("\nDemo login credentials (all use password: password123)");
     console.log("──────────────────────────────────────────────────────");
-    console.log("  Citizen:                   citizen@civictrack.in");
+    console.log("  Citizen:                   citizen@civicconnect.in");
     console.log("  Sanitation Dept:           sanitation@pune.gov.in");
     console.log("  Roads & Infra Dept:        roads@pune.gov.in");
     console.log("  Water Supply Dept:         water@pune.gov.in");

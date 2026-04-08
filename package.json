@@ -1,5 +1,5 @@
 {
-  "name": "civictrack",
+  "name": "CivicConnect",
   "private": true,
   "scripts": {
     "dev": "cd frontend && bun install && bun run dev",

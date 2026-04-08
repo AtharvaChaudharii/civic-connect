@@ -126,15 +126,15 @@ const Login = () => {
             <p className="mb-3 text-label font-semibold text-foreground">Demo Accounts <span className="font-normal text-muted-foreground">(click to fill)</span></p>
             <div className="space-y-1">
               {[
-                { label: "Citizen",                      email: "citizen@civictrack.in",   color: "text-emerald-600" },
-                { label: "Sanitation Dept",              email: "sanitation@pune.gov.in",  color: "text-orange-500" },
-                { label: "Roads & Infra Dept",           email: "roads@pune.gov.in",       color: "text-red-500" },
-                { label: "Water Supply Dept",            email: "water@pune.gov.in",       color: "text-blue-500" },
-                { label: "Electrical Dept",              email: "electrical@pune.gov.in",  color: "text-purple-500" },
-                { label: "Drainage Dept",                email: "drainage@pune.gov.in",    color: "text-cyan-600" },
-                { label: "Roads & Infra (Footpath) Dept",email: "footpath@pune.gov.in",   color: "text-pink-500" },
-                { label: "General Dept",                 email: "general@pune.gov.in",     color: "text-slate-500" },
-                { label: "Municipal Admin",              email: "admin@pmc.gov.in",        color: "text-violet-600" },
+                { label: "Citizen", email: "citizen@civicconnect.in", color: "text-emerald-600" },
+                { label: "Sanitation Dept", email: "sanitation@pune.gov.in", color: "text-orange-500" },
+                { label: "Roads & Infra Dept", email: "roads@pune.gov.in", color: "text-red-500" },
+                { label: "Water Supply Dept", email: "water@pune.gov.in", color: "text-blue-500" },
+                { label: "Electrical Dept", email: "electrical@pune.gov.in", color: "text-purple-500" },
+                { label: "Drainage Dept", email: "drainage@pune.gov.in", color: "text-cyan-600" },
+                { label: "Roads & Infra (Footpath) Dept", email: "footpath@pune.gov.in", color: "text-pink-500" },
+                { label: "General Dept", email: "general@pune.gov.in", color: "text-slate-500" },
+                { label: "Municipal Admin", email: "admin@pmc.gov.in", color: "text-violet-600" },
               ].map((acc) => (
                 <button
                   key={acc.email}
