@@ -2,7 +2,7 @@ import { useState, useEffect } from "react";
 import { useParams, useNavigate } from "react-router-dom";
 import { useAuth } from "@/contexts/AuthContext";
 import { useSocket, SOCKET_EVENTS } from "@/contexts/SocketContext";
-import { tickets as ticketsApi, CATEGORY_DISPLAY, type ApiTicketDetail, type ApiComment } from "@/lib/api";
+import { tickets as ticketsApi, issues as issuesApi, CATEGORY_DISPLAY, type ApiTicketDetail, type ApiComment } from "@/lib/api";
 import StatusBadge from "@/components/StatusBadge";
 import IssueMap from "@/components/IssueMap";
 import { Button } from "@/components/ui/button";
@@ -121,19 +121,7 @@ const TicketDetail = () => {
     setSubmittingComment(true);
 
     try {
-      const fetchRes = await fetch(`/api/issues/${firstIssueId}/comments`, {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-          Authorization: `Bearer ${localStorage.getItem("civicconnect_token")}`,
-        },
-        body: JSON.stringify({ content: commentText }),
-      });
-      if (!fetchRes.ok) {
-        const errBody = await fetchRes.json().catch(() => ({}));
-        throw new Error(errBody.error || `Server returned ${fetchRes.status}`);
-      }
-      const res = await fetchRes.json();
+      const res = await issuesApi.addComment(firstIssueId, commentText);
       // Replace temp with real comment
       if (res.comment) {
         setComments((prev) => prev.map((c) => c.id === tempComment.id ? res.comment : c));
