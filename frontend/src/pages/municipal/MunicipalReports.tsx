@@ -26,7 +26,8 @@ const MunicipalReports = () => {
 
   const handleExportCSV = () => {
     const token = localStorage.getItem("civicconnect_token");
-    const baseUrl = window.location.origin + "/api";
+    const BACKEND_URL = import.meta.env.VITE_API_URL ?? "";
+    const baseUrl = `${BACKEND_URL}/api`;
     fetch(`${baseUrl}/municipal/reports/export?format=csv`, {
       headers: { Authorization: `Bearer ${token || ""}` },
     })
