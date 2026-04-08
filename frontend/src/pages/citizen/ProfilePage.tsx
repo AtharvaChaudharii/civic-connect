@@ -27,6 +27,25 @@ const ProfilePage = () => {
   const [totalUpvotes, setTotalUpvotes] = useState(0);
   const debounceRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
+  // Upvoted issues state
+  const [upvotedIssues, setUpvotedIssues] = useState<ApiIssue[]>([]);
+  const [upvotedLoading, setUpvotedLoading] = useState(false);
+  const [upvotedFetched, setUpvotedFetched] = useState(false);
+
+  const fetchUpvotedIssues = useCallback(async () => {
+    if (!user || upvotedFetched) return;
+    setUpvotedLoading(true);
+    try {
+      const res = await issuesApi.upvoted();
+      setUpvotedIssues(res.issues);
+      setUpvotedFetched(true);
+    } catch (err) {
+      console.error(err);
+    } finally {
+      setUpvotedLoading(false);
+    }
+  }, [user, upvotedFetched]);
+
   const statusColors: Record<string, string> = { Pending: "bg-amber-500", Ongoing: "bg-orange-500", Resolved: "bg-emerald-500", Escalated: "bg-red-500" };
 
   // Debounce search input
@@ -99,17 +118,17 @@ const ProfilePage = () => {
           <p className="flex items-center gap-1 text-caption text-muted-foreground"><MapPin className="h-3.5 w-3.5" />{user?.city}</p>
           <span className="rounded-full bg-accent px-2.5 py-0.5 text-label font-medium text-accent-foreground">Active Citizen</span>
         </div>
-        <div className="flex gap-4">
-          <div className="rounded-xl border bg-background px-6 py-3 text-center">
-            <p className="text-caption text-muted-foreground">Issues Reported</p>
+        <div className="flex w-full flex-wrap gap-3 sm:w-auto sm:flex-nowrap sm:gap-4">
+          <div className="min-w-0 flex-1 rounded-xl border bg-background px-4 py-3 text-center sm:flex-none sm:px-6">
+            <p className="truncate text-caption text-muted-foreground">Issues Reported</p>
             <p className="text-h3 text-primary">{totalCount}</p>
           </div>
-          <div className="rounded-xl border bg-background px-6 py-3 text-center">
-            <p className="text-caption text-muted-foreground">Resolved</p>
+          <div className="min-w-0 flex-1 rounded-xl border bg-background px-4 py-3 text-center sm:flex-none sm:px-6">
+            <p className="truncate text-caption text-muted-foreground">Resolved</p>
             <p className="text-h3 text-foreground">{resolvedCount}</p>
           </div>
-          <div className="rounded-xl border bg-background px-6 py-3 text-center">
-            <p className="text-caption text-muted-foreground">Impact Score</p>
+          <div className="min-w-0 flex-1 rounded-xl border bg-background px-4 py-3 text-center sm:flex-none sm:px-6">
+            <p className="truncate text-caption text-muted-foreground">Impact Score</p>
             <p className="text-h3 text-foreground">{totalUpvotes}</p>
           </div>
         </div>
@@ -117,7 +136,7 @@ const ProfilePage = () => {
 
       <div className="grid gap-8 lg:grid-cols-3">
         <div className="lg:col-span-2">
-          <Tabs defaultValue="reported">
+          <Tabs defaultValue="reported" onValueChange={(v) => { if (v === "upvoted") fetchUpvotedIssues(); }}>
             <TabsList className="mb-6 h-auto gap-0 bg-transparent p-0 border-b rounded-none w-full justify-start">
               <TabsTrigger value="reported" className="rounded-none border-b-2 border-transparent data-[state=active]:border-primary data-[state=active]:bg-transparent data-[state=active]:shadow-none gap-1.5 px-4 pb-3">
                 <FileText className="h-4 w-4" /> My Reported Issues
@@ -192,10 +211,44 @@ const ProfilePage = () => {
             </TabsContent>
 
             <TabsContent value="upvoted">
-              <div className="rounded-xl border bg-card py-16 text-center">
-                <ThumbsUp className="mx-auto mb-3 h-8 w-8 text-muted-foreground" />
-                <p className="text-body text-muted-foreground">Upvoted issues tracking coming soon.</p>
-              </div>
+              {upvotedLoading ? (
+                <div className="flex justify-center py-12"><Loader2 className="h-7 w-7 animate-spin text-primary" /></div>
+              ) : upvotedIssues.length > 0 ? (
+                <div className="space-y-4">
+                  {upvotedIssues.map((issue) => (
+                    <div key={issue.id} className="overflow-hidden rounded-xl border bg-card shadow-sm">
+                      <div className="flex gap-0">
+                        <img src={issue.image} alt={issue.title} className="h-32 w-28 shrink-0 object-cover" loading="lazy" />
+                        <div className="flex flex-1 flex-col justify-between p-4">
+                          <div>
+                            <div className="mb-1 flex items-center gap-2">
+                              <StatusBadge status={issue.status} />
+                              <span className="text-label text-muted-foreground">{getRelativeTime(issue.createdAt)}</span>
+                            </div>
+                            <h3 className="text-body font-semibold text-foreground">{issue.title}</h3>
+                            <p className="mt-1 line-clamp-2 text-caption text-muted-foreground">{issue.description}</p>
+                          </div>
+                          <div className="mt-2 flex items-center justify-between">
+                            <div className="flex items-center gap-3 text-caption text-muted-foreground">
+                              <span className="flex items-center gap-1 text-primary"><ThumbsUp className="h-3.5 w-3.5 fill-current" /> {issue._count?.upvotes ?? 0}</span>
+                              <span className="flex items-center gap-1"><MessageSquare className="h-3.5 w-3.5" /> {issue._count?.comments ?? 0}</span>
+                            </div>
+                            <Link to={`/dashboard/issue/${issue.id}`} className="text-caption font-medium text-primary hover:underline">View Details →</Link>
+                          </div>
+                        </div>
+                      </div>
+                      <div className={`h-1 ${statusColors[issue.status] || "bg-muted"}`} />
+                    </div>
+                  ))}
+                </div>
+              ) : (
+                <div className="rounded-xl border bg-card py-16 text-center">
+                  <ThumbsUp className="mx-auto mb-3 h-8 w-8 text-muted-foreground" />
+                  <p className="text-body text-muted-foreground">You haven't upvoted any issues yet.</p>
+                  <p className="mt-1 text-caption text-muted-foreground">Browse issues and upvote the ones that matter to you.</p>
+                  <Link to="/dashboard/search"><Button variant="outline" className="mt-4 gap-2"><Search className="h-4 w-4" /> Browse Issues</Button></Link>
+                </div>
+              )}
             </TabsContent>
           </Tabs>
         </div>

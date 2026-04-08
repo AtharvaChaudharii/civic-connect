@@ -167,7 +167,7 @@ const CitizenDashboard = () => {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [category]);
 
-  const resolvedCount = allIssues.filter((i) => i.status === "Resolved").length;
+  const resolvedCount = myIssues.filter((i) => i.status === "Resolved").length;
   const pendingCount = myIssues.filter((i) => i.status === "Pending").length;
   const ongoingCount = myIssues.filter((i) => i.status === "Ongoing").length;
   const escalatedCount = myIssues.filter((i) => i.status === "Escalated").length;

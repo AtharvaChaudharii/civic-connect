@@ -33,6 +33,7 @@ const ReportIssue = () => {
   const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState("");
   const [responseMessage, setResponseMessage] = useState("");
+  const [createdIssueId, setCreatedIssueId] = useState<string | null>(null);
   const [geoLoading, setGeoLoading] = useState(false);
   const [gpsError, setGpsError] = useState("");
 
@@ -188,6 +189,7 @@ const ReportIssue = () => {
 
       const res = await issuesApi.report(formData);
       setResponseMessage(res.message);
+      setCreatedIssueId(res.issue?.id || null);
       setSubmitted(true);
     } catch (err: any) {
       setError(err.message || "Failed to submit report.");
@@ -211,7 +213,7 @@ const ReportIssue = () => {
           <h1 className="mb-3 text-h2 font-bold text-foreground">Report Submitted Successfully!</h1>
           <p className="mb-8 text-body text-muted-foreground">{responseMessage}</p>
           <div className="flex justify-center gap-3">
-            <Button onClick={() => navigate("/dashboard")} className="gap-2"><Send className="h-4 w-4 rotate-[-45deg]" /> Track Progress</Button>
+            <Button onClick={() => navigate(createdIssueId ? `/dashboard/issue/${createdIssueId}` : "/dashboard")} className="gap-2"><Send className="h-4 w-4 rotate-[-45deg]" /> Track Issue</Button>
             <Button variant="outline" onClick={() => navigate("/dashboard")}>Return to Dashboard</Button>
           </div>
         </div>
@@ -250,12 +252,20 @@ const ReportIssue = () => {
               <button onClick={() => { setImagePreview(null); setImageFile(null); }} className="absolute top-2 right-2 rounded-lg bg-card/90 px-3 py-1 text-label font-medium text-foreground">Remove</button>
             </div>
           ) : (
-            <label className="flex cursor-pointer flex-col items-center gap-2 rounded-xl border-2 border-dashed border-border bg-muted/30 py-12 transition-colors hover:border-primary/50">
-              <Camera className="h-10 w-10 text-muted-foreground" />
-              <span className="text-caption"><span className="font-medium text-primary">Upload a file</span> or drag and drop</span>
-              <span className="text-label text-muted-foreground">PNG, JPG up to 5MB</span>
-              <input type="file" accept="image/*" className="hidden" onChange={handleImageUpload} />
-            </label>
+            <div className="grid gap-3 sm:grid-cols-2">
+              <label className="flex cursor-pointer flex-col items-center gap-2 rounded-xl border-2 border-dashed border-border bg-muted/30 py-10 transition-colors hover:border-primary/50">
+                <Upload className="h-8 w-8 text-muted-foreground" />
+                <span className="text-caption"><span className="font-medium text-primary">Upload from Gallery</span></span>
+                <span className="text-label text-muted-foreground">PNG, JPG up to 5MB</span>
+                <input type="file" accept="image/*" className="hidden" onChange={handleImageUpload} />
+              </label>
+              <label className="flex cursor-pointer flex-col items-center gap-2 rounded-xl border-2 border-dashed border-border bg-muted/30 py-10 transition-colors hover:border-primary/50">
+                <Camera className="h-8 w-8 text-muted-foreground" />
+                <span className="text-caption"><span className="font-medium text-primary">Take a Photo</span></span>
+                <span className="text-label text-muted-foreground">Open device camera</span>
+                <input type="file" accept="image/*" capture="environment" className="hidden" onChange={handleImageUpload} />
+              </label>
+            </div>
           )}
         </div>
 

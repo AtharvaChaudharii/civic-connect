@@ -390,6 +390,50 @@ export async function getUserIssues(req: Request, res: Response): Promise<void> 
 }
 
 /**
+ * GET /api/issues/upvoted
+ * Get issues upvoted by the authenticated user.
+ */
+export async function getUpvotedIssues(req: Request, res: Response): Promise<void> {
+    try {
+        const userId = req.user!.id;
+        const upvotes = await prisma.upvote.findMany({
+            where: { userId },
+            select: { issuePostId: true },
+        });
+
+        const issueIds = upvotes.map((u) => u.issuePostId);
+        if (issueIds.length === 0) {
+            res.json({ issues: [] });
+            return;
+        }
+
+        const issues = await prisma.issuePost.findMany({
+            where: { id: { in: issueIds } },
+            select: {
+                id: true,
+                title: true,
+                description: true,
+                category: true,
+                location: true,
+                image: true,
+                status: true,
+                reporters: true,
+                createdAt: true,
+                updatedAt: true,
+                city: { select: { id: true, name: true } },
+                _count: { select: { comments: true, upvotes: true } },
+            },
+            orderBy: { createdAt: "desc" },
+        });
+
+        res.json({ issues });
+    } catch (error) {
+        console.error("Get upvoted issues error:", error);
+        res.status(500).json({ error: "Something went wrong. Please try again." });
+    }
+}
+
+/**
  * GET /api/issues/map
  * Lightweight geo-only data for map rendering.
  * Returns ALL issues for a city (no pagination cap) with minimal fields.

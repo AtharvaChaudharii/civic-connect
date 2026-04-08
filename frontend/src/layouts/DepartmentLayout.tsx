@@ -3,7 +3,6 @@ import { useAuth } from "@/contexts/AuthContext";
 import { useSocket } from "@/contexts/SocketContext";
 import {
   LayoutDashboard,
-  ClipboardList,
   BarChart3,
   Bell,
   LogOut,
@@ -22,7 +21,6 @@ const DepartmentLayout = () => {
 
   const navItems = [
     { to: "/department", icon: LayoutDashboard, label: "Dashboard", end: true },
-    { to: "/department/tickets", icon: ClipboardList, label: "Tickets" },
     { to: "/department/performance", icon: BarChart3, label: "Performance" },
   ];
 

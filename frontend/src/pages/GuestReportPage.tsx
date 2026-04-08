@@ -9,7 +9,7 @@ import { Textarea } from "@/components/ui/textarea";
 import {
   Select, SelectContent, SelectItem, SelectTrigger, SelectValue,
 } from "@/components/ui/select";
-import { CheckCircle, Camera, Send, MapPin, Info, Loader2, Home } from "lucide-react";
+import { CheckCircle, Camera, Upload, Send, MapPin, Info, Loader2, Home } from "lucide-react";
 import IssueMap from "@/components/IssueMap";
 import type { IssueCategory, Issue } from "@/types";
 import { CATEGORY_LABELS, DEPARTMENT_MAP, ALL_CATEGORIES } from "@/types";
@@ -313,12 +313,20 @@ const GuestReportPage = () => {
                 </button>
               </div>
             ) : (
-              <label className="flex cursor-pointer flex-col items-center gap-2 rounded-xl border-2 border-dashed border-border bg-muted/30 py-12 transition-colors hover:border-primary/50">
-                <Camera className="h-10 w-10 text-muted-foreground" />
-                <span className="text-caption"><span className="font-medium text-primary">Upload a file</span> or drag and drop</span>
-                <span className="text-label text-muted-foreground">PNG, JPG up to 5MB</span>
-                <input type="file" accept="image/*" className="hidden" onChange={handleImageUpload} />
-              </label>
+              <div className="grid gap-3 sm:grid-cols-2">
+                <label className="flex cursor-pointer flex-col items-center gap-2 rounded-xl border-2 border-dashed border-border bg-muted/30 py-10 transition-colors hover:border-primary/50">
+                  <Upload className="h-8 w-8 text-muted-foreground" />
+                  <span className="text-caption"><span className="font-medium text-primary">Upload from Gallery</span></span>
+                  <span className="text-label text-muted-foreground">PNG, JPG up to 5MB</span>
+                  <input type="file" accept="image/*" className="hidden" onChange={handleImageUpload} />
+                </label>
+                <label className="flex cursor-pointer flex-col items-center gap-2 rounded-xl border-2 border-dashed border-border bg-muted/30 py-10 transition-colors hover:border-primary/50">
+                  <Camera className="h-8 w-8 text-muted-foreground" />
+                  <span className="text-caption"><span className="font-medium text-primary">Take a Photo</span></span>
+                  <span className="text-label text-muted-foreground">Open device camera</span>
+                  <input type="file" accept="image/*" capture="environment" className="hidden" onChange={handleImageUpload} />
+                </label>
+              </div>
             )}
           </div>
 

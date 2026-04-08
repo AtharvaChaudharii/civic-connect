@@ -7,6 +7,7 @@ import {
     toggleUpvote,
     addComment,
     getUserIssues,
+    getUpvotedIssues,
     getMapIssues,
     getComments,
 } from "../controllers/issueController.js";
@@ -33,6 +34,9 @@ router.get("/map", getMapIssues);
 
 // Nearby issues
 router.get("/nearby", getNearbyIssues);
+
+// Upvoted issues by the authenticated user
+router.get("/upvoted", authorize("citizen"), getUpvotedIssues);
 
 // User's own issues
 router.get("/user/:userId", getUserIssues);

@@ -11,7 +11,7 @@ import { Button } from "@/components/ui/button";
 import IssueMap from "@/components/IssueMap";
 import { Link } from "react-router-dom";
 import {
-  FileText, CheckCircle, Clock, AlertTriangle, FileDown,
+  FileText, CheckCircle, Clock, AlertTriangle,
   TrendingUp, Loader2, Activity, BarChart3, MapPin,
 } from "lucide-react";
 import {
@@ -144,11 +144,6 @@ const MunicipalOverview = () => {
             Real-time city-wide issue monitoring & analytics
           </p>
         </div>
-        <Link to="/municipal/reports">
-          <Button variant="outline" className="gap-2">
-            <FileDown className="h-4 w-4" /> Export CSV
-          </Button>
-        </Link>
       </div>
 
       {/* === MAP — Full width at top === */}

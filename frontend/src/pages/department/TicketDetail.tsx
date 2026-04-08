@@ -121,14 +121,19 @@ const TicketDetail = () => {
     setSubmittingComment(true);
 
     try {
-      const res = await (await fetch(`/api/issues/${firstIssueId}/comments`, {
+      const fetchRes = await fetch(`/api/issues/${firstIssueId}/comments`, {
         method: "POST",
         headers: {
           "Content-Type": "application/json",
           Authorization: `Bearer ${localStorage.getItem("civicconnect_token")}`,
         },
         body: JSON.stringify({ content: commentText }),
-      })).json();
+      });
+      if (!fetchRes.ok) {
+        const errBody = await fetchRes.json().catch(() => ({}));
+        throw new Error(errBody.error || `Server returned ${fetchRes.status}`);
+      }
+      const res = await fetchRes.json();
       // Replace temp with real comment
       if (res.comment) {
         setComments((prev) => prev.map((c) => c.id === tempComment.id ? res.comment : c));

@@ -10,7 +10,7 @@ import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Button } from "@/components/ui/button";
 import IssueMap from "@/components/IssueMap";
 import {
-  CheckCircle, AlertTriangle, BarChart3, Clock, FileDown, Loader2,
+  CheckCircle, AlertTriangle, BarChart3, Clock, Loader2,
   MapPin, Activity, TrendingUp, TrendingDown, Target,
 } from "lucide-react";
 import {
@@ -175,9 +175,6 @@ const MunicipalDepartments = () => {
             Compare department metrics across {user?.city || "your city"}
           </p>
         </div>
-        <Button variant="outline" className="gap-2">
-          <FileDown className="h-4 w-4" /> Export Report
-        </Button>
       </div>
 
       {/* Department Tabs */}

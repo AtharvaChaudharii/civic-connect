@@ -101,7 +101,6 @@ const App = () => (
               }
             >
               <Route index element={<DeptDashboard />} />
-              <Route path="tickets" element={<DeptDashboard />} />
               <Route path="ticket/:id" element={<TicketDetail />} />
               <Route path="performance" element={<DeptPerformance />} />
               <Route path="notifications" element={<NotificationsPage />} />

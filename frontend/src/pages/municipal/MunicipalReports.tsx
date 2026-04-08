@@ -26,19 +26,29 @@ const MunicipalReports = () => {
 
   const handleExportCSV = () => {
     const token = localStorage.getItem("civicconnect_token");
-    fetch("/api/municipal/reports/export?format=csv", {
+    const baseUrl = window.location.origin + "/api";
+    fetch(`${baseUrl}/municipal/reports/export?format=csv`, {
       headers: { Authorization: `Bearer ${token || ""}` },
     })
-      .then((res) => res.blob())
+      .then((res) => {
+        const ct = res.headers.get("content-type") || "";
+        if (!res.ok || !ct.includes("text/csv")) {
+          throw new Error("Export failed — server returned non-CSV response.");
+        }
+        return res.blob();
+      })
       .then((blob) => {
         const url = URL.createObjectURL(blob);
         const a = document.createElement("a");
         a.href = url;
-        a.download = `CivicConnect_${user?.city?.toLowerCase()}_report.csv`;
+        a.download = `CivicConnect_${user?.city?.toLowerCase().replace(/\s+/g, "_") || "city"}_report.csv`;
         a.click();
         URL.revokeObjectURL(url);
       })
-      .catch(console.error);
+      .catch((err) => {
+        console.error("CSV export error:", err);
+        alert("Failed to export CSV. Please try again.");
+      });
   };
 
   // Status pie data

@@ -54,8 +54,7 @@ const DEPT_CONFIG: {
         { categoryType: "WaterOverflow", name: "Water Supply", email: "water@pune.gov.in", userName: "Water Supply Officer" },
         { categoryType: "StreetLight", name: "Electrical", email: "electrical@pune.gov.in", userName: "Electrical Officer" },
         { categoryType: "Drainage", name: "Drainage", email: "drainage@pune.gov.in", userName: "Drainage Officer" },
-        { categoryType: "Footpath", name: "Roads & Infrastructure (Footpath)", email: "footpath@pune.gov.in", userName: "Footpath Officer" },
-        { categoryType: "Other", name: "General", email: "general@pune.gov.in", userName: "General Officer" },
+        { categoryType: "Footpath", name: "Roads & Infrastructure", email: "footpath@pune.gov.in", userName: "Footpath Officer" },
     ];
 
 async function main() {
@@ -130,7 +129,6 @@ async function main() {
     console.log("  Electrical Dept:           electrical@pune.gov.in");
     console.log("  Drainage Dept:             drainage@pune.gov.in");
     console.log("  Roads & Infra (Footpath):  footpath@pune.gov.in");
-    console.log("  General Dept:              general@pune.gov.in");
     console.log("  Municipal Admin:           admin@pmc.gov.in");
     console.log("──────────────────────────────────────────────────────");
 }

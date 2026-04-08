@@ -156,6 +156,9 @@ export const issues = {
         const qs = params ? "?" + new URLSearchParams(params).toString() : "";
         return request<{ issues: ApiIssue[]; pagination: ApiPagination }>(`/issues/user/${userId}${qs}`);
     },
+
+    upvoted: () =>
+        request<{ issues: ApiIssue[] }>("/issues/upvoted"),
 };
 
 // ── Tickets (Department) ──

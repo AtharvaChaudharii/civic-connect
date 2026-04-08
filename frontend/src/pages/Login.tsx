@@ -132,8 +132,7 @@ const Login = () => {
                 { label: "Water Supply Dept", email: "water@pune.gov.in", color: "text-blue-500" },
                 { label: "Electrical Dept", email: "electrical@pune.gov.in", color: "text-purple-500" },
                 { label: "Drainage Dept", email: "drainage@pune.gov.in", color: "text-cyan-600" },
-                { label: "Roads & Infra (Footpath) Dept", email: "footpath@pune.gov.in", color: "text-pink-500" },
-                { label: "General Dept", email: "general@pune.gov.in", color: "text-slate-500" },
+                { label: "Footpath Dept", email: "footpath@pune.gov.in", color: "text-pink-500" },
                 { label: "Municipal Admin", email: "admin@pmc.gov.in", color: "text-violet-600" },
               ].map((acc) => (
                 <button

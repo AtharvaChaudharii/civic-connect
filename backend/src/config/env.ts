@@ -26,7 +26,7 @@ export const CATEGORY_DEPARTMENT_MAP: Record<string, string> = {
     StreetLight: "Electrical",
     Drainage: "Drainage",
     Footpath: "Roads & Infrastructure",
-    Other: "General",
+    Other: "Roads & Infrastructure",
 };
 
 // Duplicate detection radius in meters
