@@ -77,7 +77,7 @@ const GuestNavbar = ({ email }: { email: string }) => {
         {/* Logo — non-interactive on this route */}
         <div className="flex items-center gap-2 select-none">
           <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-primary">
-            <span className="text-sm font-bold text-primary-foreground">CT</span>
+            <span className="text-sm font-bold text-primary-foreground">CC</span>
           </div>
           <span className="text-lg font-semibold text-foreground">Civic Connect</span>
         </div>
