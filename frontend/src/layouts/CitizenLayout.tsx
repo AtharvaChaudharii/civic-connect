@@ -32,7 +32,7 @@ const CitizenLayout = () => {
         <div className="civic-container flex h-16 items-center justify-between">
           <NavLink to="/dashboard" className="flex items-center gap-2">
             <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-primary">
-              <span className="text-sm font-bold text-primary-foreground">CT</span>
+              <span className="text-sm font-bold text-primary-foreground">CC</span>
             </div>
             <span className="text-lg font-semibold text-foreground">Civic Connect</span>
           </NavLink>
