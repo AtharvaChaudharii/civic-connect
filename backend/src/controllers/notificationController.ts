@@ -3,7 +3,6 @@ import prisma from "../config/db.js";
 
 /**
  * GET /api/notifications
- * Get all notifications for the authenticated user.
  */
 export async function getNotifications(req: Request, res: Response): Promise<void> {
     try {

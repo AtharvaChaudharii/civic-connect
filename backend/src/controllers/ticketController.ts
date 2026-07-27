@@ -7,8 +7,6 @@ import { sendStatusUpdateEmail } from "../services/emailService.js";
 
 /**
  * GET /api/tickets
- * Get all consolidated tickets for the authenticated department user.
- * Optimised: only fetch the first issue post for list view instead of all posts.
  */
 export async function getTickets(req: Request, res: Response): Promise<void> {
     try {

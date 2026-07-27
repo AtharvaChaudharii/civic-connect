@@ -1,4 +1,4 @@
-# ----------- BUILDER STAGE -----------
+#Builder stage
 FROM node:20 AS builder
 
 WORKDIR /app
@@ -12,7 +12,7 @@ RUN npx prisma generate
 RUN npm run build
 
 
-# ----------- PRODUCTION STAGE -----------
+#Production stage
 FROM node:20-slim
 
 WORKDIR /app
@@ -25,7 +25,6 @@ RUN npm ci --omit=dev
 COPY --from=builder /app/dist ./dist
 COPY --from=builder /app/prisma ./prisma
 
-# 🔥 regenerate Prisma for correct runtime
 RUN npx prisma generate
 
 EXPOSE 5001
